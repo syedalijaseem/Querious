@@ -7,8 +7,12 @@ import os
 from typing import Optional
 from pymongo import MongoClient
 from dotenv import load_dotenv
+import logging
 
 load_dotenv()
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 def get_db():
@@ -40,8 +44,9 @@ def get_document_ids_for_scope(
     """
     db = get_db()
     
-    print(f"[SEARCH] get_document_ids_for_scope called")
-    print(f"[SEARCH] scope_type={scope_type}, scope_id={scope_id}, include_project={include_project}, project_id={project_id}")
+    logger.debug("get_document_ids_for_scope called")
+    logger.debug("scope_type=%s, scope_id=%s, include_project=%s, project_id=%s",
+                 scope_type, scope_id, include_project, project_id)
     
     # Build query for DocumentScope
     if scope_type == "project":
@@ -58,17 +63,17 @@ def get_document_ids_for_scope(
         else:
             query = {"scope_type": "chat", "scope_id": scope_id}
     else:
-        print(f"[SEARCH] Unknown scope_type: {scope_type}")
+        logger.warning("Unknown scope_type: %s", scope_type)
         return []
     
-    print(f"[SEARCH] Query: {query}")
+    logger.debug("Query: %s", query)
     
     # Get document_ids from document_scopes
     scopes = list(db.document_scopes.find(query, {"document_id": 1}))
-    print(f"[SEARCH] Found {len(scopes)} scope records")
+    logger.debug("Found %d scope records", len(scopes))
     
     document_ids = list(set(s["document_id"] for s in scopes))
-    print(f"[SEARCH] Unique document_ids: {document_ids}")
+    logger.debug("Unique document_ids: %s", document_ids)
     
     return document_ids
 
