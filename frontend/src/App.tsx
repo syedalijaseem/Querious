@@ -21,10 +21,12 @@ import { ProjectDetailPage } from "./pages/ProjectDetailPage";
 import { ChatViewPage } from "./pages/ChatViewPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { UpgradePage } from "./pages/UpgradePage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { LoadingSpinner } from "./components/LoadingSpinner";
 import { ToastProvider } from "./components/Toast";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Query client for TanStack Query
 const queryClient = new QueryClient({
@@ -183,26 +185,28 @@ function AppRoutes() {
         }
       />
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* 404 Fallback */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <ThemeProvider>
-          <AuthProvider>
-            <UIProvider>
-              <ToastProvider>
-                <AppRoutes />
-              </ToastProvider>
-            </UIProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <ThemeProvider>
+            <AuthProvider>
+              <UIProvider>
+                <ToastProvider>
+                  <AppRoutes />
+                </ToastProvider>
+              </UIProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

@@ -85,7 +85,13 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
 }
 
 // --- Profile Tab ---
-function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
+function ProfileTab({
+  user,
+  onUpdate,
+}: {
+  user: { name?: string; email?: string } | null;
+  onUpdate: () => void;
+}) {
   const [name, setName] = useState(user?.name || "");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{

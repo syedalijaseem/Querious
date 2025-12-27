@@ -236,7 +236,7 @@ export async function sendQueryEvent(
 
 // --- Inngest Run Polling ---
 
-const INNGEST_RUNS_API = "http://localhost:8288/v1";
+const INNGEST_RUNS_API = import.meta.env.VITE_INNGEST_URL || "/inngest";
 
 export async function waitForRunOutput(
   eventId: string,

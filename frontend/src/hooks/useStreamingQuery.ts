@@ -21,7 +21,7 @@ interface StreamingState {
   tokensUsed: number;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 export function useStreamingQuery(chatId: string) {
   const [state, setState] = useState<StreamingState>({
