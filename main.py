@@ -1,4 +1,4 @@
-import logging 
+import logging
 from fastapi import FastAPI
 import inngest.fast_api
 from inngest.experimental import ai
@@ -28,6 +28,9 @@ def _validate_env():
         raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
 
 _validate_env()
+
+# Configure module logger
+logger = logging.getLogger(__name__)
 
 # --- History Sliding Window Configuration ---
 HISTORY_CONFIG = {
@@ -101,11 +104,11 @@ async def rag_ingest_pdf(ctx: inngest.Context):
     event_data = IngestPdfEventData(**ctx.event.data)
     document_id = event_data.document_id
     
-    print(f"[INGEST] ========== Starting ingestion ==========")
-    print(f"[INGEST] Document ID: {document_id}")
-    print(f"[INGEST] Filename: {event_data.filename}")
-    print(f"[INGEST] PDF Path (S3 Key): {event_data.pdf_path}")
-    print(f"[INGEST] Scope: {event_data.scope_type} / {event_data.scope_id}")
+    logger.info("========== Starting ingestion ==========")
+    logger.info("Document ID: %s", document_id)
+    logger.info("Filename: %s", event_data.filename)
+    logger.info("PDF Path (S3 Key): %s", event_data.pdf_path)
+    logger.info("Scope: %s / %s", event_data.scope_type, event_data.scope_id)
     
     def _load() -> RAGChunkAndSrc:
         import file_storage
@@ -113,16 +116,16 @@ async def rag_ingest_pdf(ctx: inngest.Context):
         from chunk_service import update_document_status
         from models import DocumentStatus
         
-        print(f"[INGEST] Step 1: Downloading PDF from S3...")
+        logger.info("Step 1: Downloading PDF from S3...")
         # Download PDF from S3 to temp file
         temp_path = file_storage.download_to_temp(event_data.pdf_path)
-        print(f"[INGEST] Downloaded to: {temp_path}")
+        logger.info("Downloaded to: %s", temp_path)
         
         try:
             # load_and_chunk_pdf extracts text chunks
-            print(f"[INGEST] Step 2: Parsing PDF and chunking...")
+            logger.info("Step 2: Parsing PDF and chunking...")
             chunks = load_and_chunk_pdf(temp_path)
-            print(f"[INGEST] Extracted {len(chunks)} chunks from PDF")
+            logger.info("Extracted %d chunks from PDF", len(chunks))
             
             # Validate we got content
             if not chunks:
@@ -132,12 +135,12 @@ async def rag_ingest_pdf(ctx: inngest.Context):
             chunk_with_page = [
                 ChunkWithPage(text=chunk, page=i + 1) for i, chunk in enumerate(chunks)
             ]
-            print(f"[INGEST] Step 2 complete: {len(chunk_with_page)} chunks with page info")
+            logger.info("Step 2 complete: %d chunks with page info", len(chunk_with_page))
             return RAGChunkAndSrc(chunks=chunk_with_page, source_id=event_data.filename)
         except Exception as e:
             # Log error and leave status as pending for retry
             # In production, could set status to 'error' after max retries
-            print(f"[INGEST] ERROR: PDF parsing failed for {event_data.filename}: {e}")
+            logger.error("PDF parsing failed for %s: %s", event_data.filename, e)
             raise
         finally:
             # Clean up temp file
@@ -150,12 +153,12 @@ async def rag_ingest_pdf(ctx: inngest.Context):
         from models import DocumentStatus
         
         chunks = chunks_and_src.chunks
-        print(f"[INGEST] Step 3: Embedding {len(chunks)} chunks...")
+        logger.info("Step 3: Embedding %d chunks...", len(chunks))
         
         # Get text for embedding
         texts = [c.text for c in chunks]
         embeddings = embed_texts(texts)
-        print(f"[INGEST] Generated {len(embeddings)} embeddings, dim={len(embeddings[0]) if embeddings else 0}")
+        logger.info("Generated %d embeddings, dim=%d", len(embeddings), len(embeddings[0]) if embeddings else 0)
         
         # Prepare chunk data for chunk_service
         chunks_data = [
@@ -168,14 +171,14 @@ async def rag_ingest_pdf(ctx: inngest.Context):
         ]
         
         # Save chunks to chunks collection
-        print(f"[INGEST] Step 4: Saving chunks to MongoDB...")
+        logger.info("Step 4: Saving chunks to MongoDB...")
         saved_count = save_chunks(document_id, chunks_data, embeddings)
-        print(f"[INGEST] Saved {saved_count} chunks to chunks collection")
+        logger.info("Saved %d chunks to chunks collection", saved_count)
         
         # Update document status to ready
-        print(f"[INGEST] Step 5: Updating document status to READY...")
+        logger.info("Step 5: Updating document status to READY...")
         update_document_status(document_id, DocumentStatus.READY)
-        print(f"[INGEST] ========== Ingestion complete ==========")
+        logger.info("========== Ingestion complete ==========")
         
         return RAGUpsertResult(ingested=saved_count)
 
@@ -195,11 +198,11 @@ async def rag_query_pdf_ai(ctx: inngest.Context):
     # Validate event data with Pydantic
     event_data = QueryPdfEventData(**ctx.event.data)
     
-    print(f"[QUERY] ========== Starting query ==========")
-    print(f"[QUERY] Question: {event_data.question[:100]}...")
-    print(f"[QUERY] Chat ID: {event_data.chat_id}")
-    print(f"[QUERY] Scope: {event_data.scope_type} / {event_data.scope_id}")
-    print(f"[QUERY] Top K: {event_data.top_k}")
+    logger.info("========== Starting query ==========")
+    logger.info("Question: %s...", event_data.question[:100])
+    logger.info("Chat ID: %s", event_data.chat_id)
+    logger.info("Scope: %s / %s", event_data.scope_type, event_data.scope_id)
+    logger.info("Top K: %d", event_data.top_k)
     
     # --- System Prompt ---
     SYSTEM_PROMPT = """You are a helpful document assistant for Querious. Your role is to answer questions based ONLY on the provided context from the user's documents.
@@ -225,9 +228,9 @@ Rules:
     def _search() -> SearchResult:
         from chunk_search import search_for_scope, get_db
         
-        print(f"[QUERY] Step 1: Embedding question...")
+        logger.info("Step 1: Embedding question...")
         query_vec = embed_texts([event_data.question])[0]
-        print(f"[QUERY] Embedding generated, dim={len(query_vec)}")
+        logger.info("Embedding generated, dim=%d", len(query_vec))
         
         # M3: Look up project_id for chat scopes to enable inherited search
         project_id = None
@@ -235,16 +238,17 @@ Rules:
         
         if event_data.scope_type.value == "chat":
             db = get_db()
-            print(f"[QUERY] Step 2: Looking up chat in DB...")
+            logger.info("Step 2: Looking up chat in DB...")
             chat = db.chats.find_one({"id": event_data.scope_id}, {"project_id": 1})
-            print(f"[QUERY] Chat found: {chat}")
+            logger.debug("Chat found: %s", chat)
             if chat and chat.get("project_id"):
                 project_id = chat["project_id"]
-                print(f"[QUERY] Chat belongs to project: {project_id}")
+                logger.info("Chat belongs to project: %s", project_id)
         
         # Use chunk_search with project inheritance (M3)
-        print(f"[QUERY] Step 3: Searching chunks...")
-        print(f"[QUERY] Search params: scope_type={event_data.scope_type.value}, scope_id={event_data.scope_id}, project_id={project_id}")
+        logger.info("Step 3: Searching chunks...")
+        logger.debug("Search params: scope_type=%s, scope_id=%s, project_id=%s", 
+                     event_data.scope_type.value, event_data.scope_id, project_id)
         result = search_for_scope(
             query_vec, 
             scope_type=event_data.scope_type.value,
@@ -254,9 +258,9 @@ Rules:
             project_id=project_id
         )
         
-        print(f"[QUERY] Search returned {len(result.get('contexts', []))} contexts")
-        print(f"[QUERY] Sources: {result.get('sources', [])}")
-        print(f"[QUERY] Scores: {result.get('scores', [])}")
+        logger.info("Search returned %d contexts", len(result.get('contexts', [])))
+        logger.debug("Sources: %s", result.get('sources', []))
+        logger.debug("Scores: %s", result.get('scores', []))
         
         # Store raw data for improved formatting
         return SearchResult(
@@ -338,7 +342,8 @@ Rules:
     
     # Apply sliding window to history
     recent_history = get_recent_history(event_data.history)
-    print(f"[QUERY] History: {len(event_data.history)} total, using {len(recent_history)} recent ({estimate_tokens(recent_history)} tokens est.)")
+    logger.info("History: %d total, using %d recent (%d tokens est.)",
+                len(event_data.history), len(recent_history), estimate_tokens(recent_history))
     
     messages.extend(recent_history)
     messages.append({"role": "user", "content": user_content})
@@ -361,7 +366,7 @@ Rules:
     input_tokens = usage.get("prompt_tokens", 0)
     output_tokens = usage.get("completion_tokens", 0)
     
-    print(f"[QUERY] Tokens: {input_tokens} input + {output_tokens} output = {total_tokens} total")
+    logger.info("Tokens: %d input + %d output = %d total", input_tokens, output_tokens, total_tokens)
     
     if event_data.user_id and total_tokens > 0:
         def _update_tokens():
@@ -374,7 +379,7 @@ Rules:
                 {"id": event_data.user_id},
                 {"$inc": {"tokens_used": total_tokens}}
             )
-            print(f"[QUERY] Updated tokens_used for user {event_data.user_id}: +{total_tokens}")
+            logger.info("Updated tokens_used for user %s: +%d", event_data.user_id, total_tokens)
         
         await ctx.step.run("update-token-usage", _update_tokens)
 

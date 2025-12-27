@@ -14,8 +14,12 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
 import inngest
+import logging
 
 load_dotenv()
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from models import (
     Project,
@@ -135,7 +139,7 @@ async def delete_project(project_id: str, user: User = Depends(get_current_user)
             try:
                 file_storage.delete_file(doc["s3_key"])
             except Exception as e:
-                print(f"Warning: Failed to delete S3 file {doc.get('s3_key')}: {e}")
+                logger.warning("Failed to delete S3 file %s: %s", doc.get('s3_key'), e)
     
     # Delete from vector store
     vector_store.delete_by_scope("project", project_id)
@@ -153,7 +157,7 @@ async def delete_project(project_id: str, user: User = Depends(get_current_user)
                 try:
                     file_storage.delete_file(doc["s3_key"])
                 except Exception as e:
-                    print(f"Warning: Failed to delete S3 file {doc.get('s3_key')}: {e}")
+                    logger.warning("Failed to delete S3 file %s: %s", doc.get('s3_key'), e)
         
         # Delete from vector store
         vector_store.delete_by_scope("chat", chat["id"])
@@ -281,7 +285,7 @@ async def delete_chat(chat_id: str, user: User = Depends(get_current_user)):
             try:
                 file_storage.delete_file(doc["s3_key"])
             except Exception as e:
-                print(f"Warning: Failed to delete S3 file {doc.get('s3_key')}: {e}")
+                logger.warning("Failed to delete S3 file %s: %s", doc.get('s3_key'), e)
     
     # Delete from vector store
     vector_store.delete_by_scope("chat", chat_id)

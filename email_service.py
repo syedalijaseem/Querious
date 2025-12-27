@@ -6,8 +6,12 @@ import os
 from typing import Optional
 import resend
 from dotenv import load_dotenv
+import logging
 
 load_dotenv()
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # Configure Resend
 resend.api_key = os.getenv("RESEND_API_KEY", "")
@@ -35,7 +39,7 @@ def send_verification_email(to_email: str, token: str, name: Optional[str] = Non
         True if sent successfully, False otherwise
     """
     if not is_configured():
-        print(f"[DEV] Email not configured. Verification token for {to_email}: {token}")
+        logger.info("Email not configured. Verification token for %s: %s", to_email, token)
         return False
     
     verify_url = f"{APP_URL}/verify-email?token={token}"
@@ -92,7 +96,7 @@ def send_verification_email(to_email: str, token: str, name: Optional[str] = Non
         })
         return True
     except Exception as e:
-        print(f"[ERROR] Failed to send verification email: {e}")
+        logger.error("Failed to send verification email: %s", e)
         return False
 
 
@@ -107,7 +111,7 @@ def send_password_reset_email(to_email: str, token: str) -> bool:
         True if sent successfully, False otherwise
     """
     if not is_configured():
-        print(f"[DEV] Email not configured. Password reset token for {to_email}: {token}")
+        logger.info("Email not configured. Password reset token for %s: %s", to_email, token)
         return False
     
     reset_url = f"{APP_URL}/reset-password?token={token}"
@@ -160,7 +164,7 @@ def send_password_reset_email(to_email: str, token: str) -> bool:
         })
         return True
     except Exception as e:
-        print(f"[ERROR] Failed to send password reset email: {e}")
+        logger.error("Failed to send password reset email: %s", e)
         return False
 
 
@@ -175,7 +179,7 @@ def send_email_change_verification(to_email: str, token: str) -> bool:
         True if sent successfully, False otherwise
     """
     if not is_configured():
-        print(f"[DEV] Email not configured. Email change token for {to_email}: {token}")
+        logger.info("Email not configured. Email change token for %s: %s", to_email, token)
         return False
     
     verify_url = f"{APP_URL}/verify-email?token={token}"
@@ -228,5 +232,5 @@ def send_email_change_verification(to_email: str, token: str) -> bool:
         })
         return True
     except Exception as e:
-        print(f"[ERROR] Failed to send email change verification: {e}")
+        logger.error("Failed to send email change verification: %s", e)
         return False
