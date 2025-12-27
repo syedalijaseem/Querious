@@ -403,11 +403,23 @@ Rules:
 
 app = FastAPI(title="DocuRAG API")
 
-# CORS for React frontend (allow all origins in dev)
+# CORS configuration - permissive in dev, restricted in production
 from fastapi.middleware.cors import CORSMiddleware
+
+# Determine environment
+ENV = os.getenv("ENVIRONMENT", "development")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+# In development, allow all origins for easier testing
+# In production, restrict to frontend domain only
+if ENV == "production":
+    allowed_origins = [FRONTEND_URL]
+else:
+    allowed_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development; restrict in production
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
