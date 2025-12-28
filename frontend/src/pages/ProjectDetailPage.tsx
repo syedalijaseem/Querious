@@ -6,7 +6,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useProject } from "../hooks/useProjects";
 import { useProjectChats, useCreateChat } from "../hooks/useChats";
 import { useUploadDocument, useDocuments } from "../hooks/useDocuments";
-import { useUploadLimits } from "../hooks/useUploadLimits";
+import { useUploadLimits, useChatLimit } from "../hooks/useUploadLimits";
 import { useAuth } from "../context/AuthContext";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { LimitModal } from "../components/LimitModal";
@@ -18,11 +18,13 @@ export function ProjectDetailPage() {
   const [replyInput, setReplyInput] = useState("");
   const [showMobileFiles, setShowMobileFiles] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
-  const [limitType, setLimitType] = useState<"documents" | "tokens">(
+  const [limitType, setLimitType] = useState<"documents" | "tokens" | "chats">(
     "documents"
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+
+  const chatLimit = useChatLimit();
 
   const { data: project, isLoading: projectLoading } = useProject(id || "");
   const { data: chats = [], isLoading: chatsLoading } = useProjectChats(
@@ -47,6 +49,13 @@ export function ProjectDetailPage() {
     // Check if project has documents
     if (documents.length === 0) {
       alert("Please upload files to this project before starting a new chat.");
+      return;
+    }
+
+    // Check chat limit before creation
+    if (!chatLimit.canCreate) {
+      setLimitType("chats");
+      setShowLimitModal(true);
       return;
     }
 
@@ -367,12 +376,7 @@ export function ProjectDetailPage() {
       {/* Limit Modal */}
       <LimitModal
         isOpen={showLimitModal}
-        onClose={() => {
-          setShowLimitModal(false);
-          if (limitType === "documents") {
-            navigate("/upgrade");
-          }
-        }}
+        onClose={() => setShowLimitModal(false)}
         limitType={limitType}
         currentPlan={user?.plan || "free"}
       />

@@ -20,7 +20,6 @@ import { ProjectsPage } from "./pages/ProjectsPage";
 import { ProjectDetailPage } from "./pages/ProjectDetailPage";
 import { ChatViewPage } from "./pages/ChatViewPage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { UpgradePage } from "./pages/UpgradePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
@@ -133,14 +132,6 @@ function AppRoutes() {
             <MainLayout>
               <ChatsPage />
             </MainLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/upgrade"
-        element={
-          <ProtectedRoute>
-            <UpgradePage />
           </ProtectedRoute>
         }
       />
