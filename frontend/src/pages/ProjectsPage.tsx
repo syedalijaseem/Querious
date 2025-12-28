@@ -12,6 +12,8 @@ import {
 import { formatRelativeTime } from "../utils/formatTime";
 import { useAuth } from "../context/AuthContext";
 import { LimitModal } from "../components/LimitModal";
+import { ConfirmationModal } from "../components/ConfirmationModal";
+import { useProjectLimit } from "../hooks/useUploadLimits";
 
 export function ProjectsPage() {
   const navigate = useNavigate();
@@ -19,7 +21,11 @@ export function ProjectsPage() {
   const [showNewModal, setShowNewModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const { user } = useAuth();
+
+  const projectLimit = useProjectLimit();
 
   const { data: projects = [], isLoading } = useProjects();
   const createProject = useCreateProject();
@@ -59,10 +65,25 @@ export function ProjectsPage() {
     }
   }
 
-  async function handleDeleteProject(id: string, e: React.MouseEvent) {
+  function handleNewProjectClick() {
+    // Check limit before showing dialog
+    if (!projectLimit.canCreate) {
+      setShowLimitModal(true);
+      return;
+    }
+    setShowNewModal(true);
+  }
+
+  function handleDeleteClick(id: string, e: React.MouseEvent) {
     e.stopPropagation();
-    if (confirm("Delete this project and all its chats?")) {
-      deleteProject.mutate(id);
+    setProjectToDelete(id);
+    setShowDeleteConfirm(true);
+  }
+
+  function confirmDelete() {
+    if (projectToDelete) {
+      deleteProject.mutate(projectToDelete);
+      setProjectToDelete(null);
     }
   }
 
@@ -116,7 +137,7 @@ export function ProjectsPage() {
               Projects
             </h1>
             <button
-              onClick={() => setShowNewModal(true)}
+              onClick={handleNewProjectClick}
               className="flex items-center gap-2 px-4 py-2.5 bg-[#0d9488] hover:bg-[#0f766e] dark:bg-[#2dd4bf] dark:hover:bg-[#5eead4] text-white dark:text-[#0f2e2b] rounded-xl font-medium transition-all"
             >
               <Plus className="w-5 h-5" />
@@ -182,7 +203,7 @@ export function ProjectsPage() {
 
                   {/* Delete button */}
                   <button
-                    onClick={(e) => handleDeleteProject(project.id, e)}
+                    onClick={(e) => handleDeleteClick(project.id, e)}
                     className="absolute top-3 right-3 p-2 opacity-0 group-hover:opacity-100 hover:bg-[#fdeaea] dark:hover:bg-[#2e1616] text-[#737373] dark:text-[#a0a0a0] hover:text-[#dc2626] dark:hover:text-[#f87171] rounded-lg transition-all"
                     title="Delete project"
                   >
@@ -251,6 +272,20 @@ export function ProjectsPage() {
         onClose={() => setShowLimitModal(false)}
         limitType="projects"
         currentPlan={user?.plan || "free"}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setProjectToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Project?"
+        message="This will permanently delete this project and all its chats. This action cannot be undone."
+        confirmText="Delete"
+        variant="destructive"
       />
     </>
   );

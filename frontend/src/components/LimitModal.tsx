@@ -60,9 +60,9 @@ export function LimitModal({
 
   if (!isOpen) return null;
 
-  function handleUpgrade(plan: "pro" | "premium") {
-    window.location.href = `/checkout?plan=${plan}`;
-  }
+  // function handleUpgrade(plan: "pro" | "premium") {
+  //   window.location.href = `/checkout?plan=${plan}`;
+  // }
 
   const { title, subtitle } = LIMIT_MESSAGES[limitType];
 
@@ -141,19 +141,17 @@ export function LimitModal({
               name="Pro"
               price="$10"
               features={proPlanFeatures}
-              buttonText="Upgrade to Pro"
+              buttonText="Coming soon..."
               isCurrent={currentPlan === "pro"}
-              onClick={() => handleUpgrade("pro")}
             />
             <PlanCard
               name="Premium"
               price="$25"
               features={premiumPlanFeatures}
-              buttonText="Upgrade to Premium"
+              buttonText="Coming soon..."
               isCurrent={currentPlan === "premium"}
               isHighlighted
               highlightLabel="Best Value"
-              onClick={() => handleUpgrade("premium")}
             />
           </div>
 

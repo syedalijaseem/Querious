@@ -56,3 +56,49 @@ export function useTokenLimit() {
     percentUsed: (tokensUsed / tokenLimit) * 100,
   };
 }
+
+export function useProjectLimit() {
+  const { user } = useAuth();
+  const plan = user?.plan || "free";
+
+  // Fetch current project count
+  const { data: projects } = useQuery({
+    queryKey: ["projects-count"],
+    queryFn: () => api.listProjects().then((p) => p.length),
+    staleTime: 5000, // Cache for 5 seconds
+  });
+
+  const maxProjects = plan === "free" ? 1 : plan === "pro" ? 5 : 999999; // unlimited for premium
+  const currentCount = projects || 0;
+
+  return {
+    canCreate: currentCount < maxProjects,
+    currentCount,
+    maxProjects,
+    remaining: maxProjects - currentCount,
+    isLoading: projects === undefined,
+  };
+}
+
+export function useChatLimit() {
+  const { user } = useAuth();
+  const plan = user?.plan || "free";
+
+  // Fetch current chat count
+  const { data: chats } = useQuery({
+    queryKey: ["chats-count"],
+    queryFn: () => api.listChats().then((c) => c.length),
+    staleTime: 5000, // Cache for 5 seconds
+  });
+
+  const maxChats = plan === "free" ? 3 : 999999; // unlimited for pro/premium
+  const currentCount = chats || 0;
+
+  return {
+    canCreate: currentCount < maxChats,
+    currentCount,
+    maxChats,
+    remaining: maxChats - currentCount,
+    isLoading: chats === undefined,
+  };
+}
