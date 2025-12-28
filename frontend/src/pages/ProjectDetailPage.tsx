@@ -7,6 +7,7 @@ import { useProject } from "../hooks/useProjects";
 import { useProjectChats, useCreateChat } from "../hooks/useChats";
 import { useUploadDocument, useDocuments } from "../hooks/useDocuments";
 import { useUploadLimits } from "../hooks/useUploadLimits";
+import { useAuth } from "../context/AuthContext";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { LimitModal } from "../components/LimitModal";
 import { formatRelativeTime } from "../utils/formatTime";
@@ -21,6 +22,7 @@ export function ProjectDetailPage() {
     "documents"
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
 
   const { data: project, isLoading: projectLoading } = useProject(id || "");
   const { data: chats = [], isLoading: chatsLoading } = useProjectChats(
@@ -365,12 +367,14 @@ export function ProjectDetailPage() {
       {/* Limit Modal */}
       <LimitModal
         isOpen={showLimitModal}
-        onClose={() => setShowLimitModal(false)}
-        limitType={limitType}
-        onUpgrade={() => {
+        onClose={() => {
           setShowLimitModal(false);
-          navigate("/upgrade");
+          if (limitType === "documents") {
+            navigate("/upgrade");
+          }
         }}
+        limitType={limitType}
+        currentPlan={user?.plan || "free"}
       />
     </div>
   );

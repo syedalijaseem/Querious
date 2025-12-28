@@ -551,10 +551,7 @@ export function ChatViewPage() {
         isOpen={showDocumentLimitModal}
         onClose={() => setShowDocumentLimitModal(false)}
         limitType="documents"
-        onUpgrade={() => {
-          setShowDocumentLimitModal(false);
-          window.location.href = "/upgrade";
-        }}
+        currentPlan={user?.plan || "free"}
       />
     </>
   );
