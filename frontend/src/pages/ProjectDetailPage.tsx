@@ -1,12 +1,14 @@
 /**
  * Project Detail Page - Shows project chats and files.
  */
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useProject } from "../hooks/useProjects";
 import { useProjectChats, useCreateChat } from "../hooks/useChats";
 import { useUploadDocument, useDocuments } from "../hooks/useDocuments";
+import { useUploadLimits } from "../hooks/useUploadLimits";
 import { LoadingSpinner } from "../components/LoadingSpinner";
+import { LimitModal } from "../components/LimitModal";
 import { formatRelativeTime } from "../utils/formatTime";
 
 export function ProjectDetailPage() {
@@ -14,6 +16,11 @@ export function ProjectDetailPage() {
   const navigate = useNavigate();
   const [replyInput, setReplyInput] = useState("");
   const [showMobileFiles, setShowMobileFiles] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitType, setLimitType] = useState<"documents" | "tokens">(
+    "documents"
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: project, isLoading: projectLoading } = useProject(id || "");
   const { data: chats = [], isLoading: chatsLoading } = useProjectChats(
@@ -22,6 +29,9 @@ export function ProjectDetailPage() {
 
   const createChat = useCreateChat();
   const uploadDocument = useUploadDocument();
+
+  // Check upload limits
+  const uploadLimits = useUploadLimits("project", id || null);
 
   // Fetch project documents
   const { data: documents = [], isLoading: documentsLoading } = useDocuments(
@@ -47,6 +57,18 @@ export function ProjectDetailPage() {
     } catch (error) {
       console.error("Failed to create chat:", error);
     }
+  }
+
+  function handleUploadClick() {
+    // Check limits before opening file picker
+    if (!uploadLimits.canUpload) {
+      setLimitType("documents");
+      setShowLimitModal(true);
+      return;
+    }
+
+    // Open file picker
+    fileInputRef.current?.click();
   }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -80,12 +102,31 @@ export function ProjectDetailPage() {
       );
 
       if (errors.length > 0) {
-        const errorNames = errors.map((e) => e.filename).join(", ");
-        alert(`Some uploads failed: ${errorNames}\n${errors[0].message}`);
+        // Check if it's a limit error
+        const hasLimitError = errors.some((e) =>
+          e.message.includes("limit_reached")
+        );
+
+        if (hasLimitError) {
+          setLimitType("documents");
+          setShowLimitModal(true);
+        } else {
+          const errorNames = errors.map((e) => e.filename).join(", ");
+          alert(`Some uploads failed: ${errorNames}\n${errors[0].message}`);
+        }
       }
     } catch (error) {
       console.error("Upload failed:", error);
-      alert("Upload failed");
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      // Check if it's a limit error
+      if (errorMessage.includes("limit_reached")) {
+        setLimitType("documents");
+        setShowLimitModal(true);
+      } else {
+        alert("Upload failed");
+      }
     }
   }
 
@@ -148,19 +189,26 @@ export function ProjectDetailPage() {
           <div className="lg:hidden border-b border-[#e8e8e8] dark:border-[#3a3a3a] bg-[#f8f8f8] dark:bg-[#1e1e1e] p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-[#a3a3a3]">
-                Project Files
+                Project Files{" "}
+                {!uploadLimits.isLoading &&
+                  `(${uploadLimits.currentCount}/${uploadLimits.maxDocs})`}
               </span>
-              <label className="cursor-pointer px-3 py-1.5 bg-[#0d9488] hover:bg-[#0f766e] dark:bg-[#2dd4bf] dark:hover:bg-[#5eead4] text-white dark:text-[#0f2e2b] rounded-lg text-sm transition-colors">
+              <button
+                onClick={handleUploadClick}
+                disabled={uploadDocument.isPending}
+                className="px-3 py-1.5 bg-[#0d9488] hover:bg-[#0f766e] disabled:bg-gray-400 dark:bg-[#2dd4bf] dark:hover:bg-[#5eead4] text-white dark:text-[#0f2e2b] rounded-lg text-sm transition-colors"
+              >
                 + Upload
-                <input
-                  type="file"
-                  accept=".pdf"
-                  multiple
-                  onChange={handleFileUpload}
-                  disabled={uploadDocument.isPending}
-                  className="hidden"
-                />
-              </label>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf"
+                multiple
+                onChange={handleFileUpload}
+                disabled={uploadDocument.isPending}
+                className="hidden"
+              />
             </div>
             {uploadDocument.isPending && (
               <div className="text-sm text-[#a3a3a3] mb-2 animate-pulse">
@@ -250,18 +298,27 @@ export function ProjectDetailPage() {
       {/* Files Panel */}
       <aside className="w-72 border-l border-[#e8e8e8] dark:border-[#3a3a3a] hidden lg:flex flex-col">
         <div className="h-14 md:h-16 px-4 border-b border-[#e8e8e8] dark:border-[#3a3a3a] flex items-center justify-between flex-shrink-0">
-          <h2 className="font-semibold">Files</h2>
-          <label className="cursor-pointer p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors">
+          <h2 className="font-semibold">
+            Files{" "}
+            {!uploadLimits.isLoading &&
+              `(${uploadLimits.currentCount}/${uploadLimits.maxDocs})`}
+          </h2>
+          <button
+            onClick={handleUploadClick}
+            disabled={uploadDocument.isPending}
+            className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-50 rounded-lg transition-colors"
+          >
             <span className="text-[#0d9488] dark:text-[#2dd4bf]">+</span>
-            <input
-              type="file"
-              accept=".pdf"
-              multiple
-              onChange={handleFileUpload}
-              disabled={uploadDocument.isPending}
-              className="hidden"
-            />
-          </label>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf"
+            multiple
+            onChange={handleFileUpload}
+            disabled={uploadDocument.isPending}
+            className="hidden"
+          />
         </div>
 
         <div className="flex-1 overflow-auto p-4">
@@ -304,6 +361,17 @@ export function ProjectDetailPage() {
           )}
         </div>
       </aside>
+
+      {/* Limit Modal */}
+      <LimitModal
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        limitType={limitType}
+        onUpgrade={() => {
+          setShowLimitModal(false);
+          navigate("/upgrade");
+        }}
+      />
     </div>
   );
 }

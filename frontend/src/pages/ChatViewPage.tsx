@@ -12,6 +12,7 @@ import {
   useUpdateChat,
 } from "../hooks/useChats";
 import { useUploadDocument } from "../hooks/useDocuments";
+import { useUploadLimits } from "../hooks/useUploadLimits";
 import { useAuth } from "../context/AuthContext";
 import * as api from "../api";
 import type { Message, AIModel, QualityPreset } from "../types";
@@ -19,6 +20,7 @@ import logo from "../assets/logo.png";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { ModelSelector } from "../components/ModelSelector";
 import { TokenLimitModal } from "../components/TokenLimitModal";
+import { LimitModal } from "../components/LimitModal";
 import {
   QualityPresetSelector,
   getChunkCount,
@@ -35,7 +37,8 @@ export function ChatViewPage() {
   const [input, setInput] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [sending, setSending] = useState(false);
-  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showTokenLimitModal, setShowTokenLimitModal] = useState(false);
+  const [showDocumentLimitModal, setShowDocumentLimitModal] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,6 +52,9 @@ export function ChatViewPage() {
   const uploadDocument = useUploadDocument();
   const updateChat = useUpdateChat();
   const { user, addTokensUsed } = useAuth();
+
+  // Check upload limits
+  const uploadLimits = useUploadLimits("chat", id || null);
 
   // Streaming query hook
   const streaming = useStreamingQuery(id || "");
@@ -76,7 +82,7 @@ export function ChatViewPage() {
 
     // Check token limit before sending
     if (user && user.tokens_used >= user.token_limit) {
-      setShowLimitModal(true);
+      setShowTokenLimitModal(true);
       return;
     }
 
@@ -177,7 +183,7 @@ export function ChatViewPage() {
       streaming.stage === "error" &&
       streaming.error?.includes("limit_reached")
     ) {
-      setShowLimitModal(true);
+      setShowTokenLimitModal(true);
       streaming.reset();
     }
   }, [
@@ -233,10 +239,13 @@ export function ChatViewPage() {
       );
 
       if (errors.length > 0) {
-        // Check if it's a limit error (403)
-        const limitError = errors.find((e) => e.status === 403);
-        if (limitError) {
-          setShowLimitModal(true);
+        // Check if it's a limit error (403 or limit_reached in message)
+        const hasLimitError = errors.some(
+          (e) => e.status === 403 || e.message.includes("limit_reached")
+        );
+
+        if (hasLimitError) {
+          setShowDocumentLimitModal(true);
         } else {
           const errorNames = errors.map((e) => e.filename).join(", ");
           alert(`Some uploads failed: ${errorNames}\n${errors[0].message}`);
@@ -244,12 +253,31 @@ export function ChatViewPage() {
       }
     } catch (error) {
       console.error("Upload failed:", error);
-      alert("Upload failed");
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      // Check if it's a limit error
+      if (errorMessage.includes("limit_reached")) {
+        setShowDocumentLimitModal(true);
+      } else {
+        alert("Upload failed");
+      }
     } finally {
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
+  }
+
+  function handleAttachClick() {
+    // Check limits before opening file picker
+    if (!uploadLimits.canUpload) {
+      setShowDocumentLimitModal(true);
+      return;
+    }
+
+    // Open file picker
+    fileInputRef.current?.click();
   }
 
   if (!id) {
@@ -397,7 +425,7 @@ export function ChatViewPage() {
 
               {/* Attach Button */}
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={handleAttachClick}
                 disabled={uploadDocument.isPending}
                 className="p-2 rounded-full text-[#737373] dark:text-[#a0a0a0] hover:text-[#1a1a1a] dark:hover:text-white hover:bg-[#f0f0f0] dark:hover:bg-[#3a3a3a] transition-colors disabled:opacity-50 flex-shrink-0"
                 title="Attach PDF"
@@ -460,13 +488,13 @@ export function ChatViewPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     if (isAtTokenLimit) {
-                      setShowLimitModal(true);
+                      setShowTokenLimitModal(true);
                     } else {
                       handleSend();
                     }
                   }
                 }}
-                onClick={() => isAtTokenLimit && setShowLimitModal(true)}
+                onClick={() => isAtTokenLimit && setShowTokenLimitModal(true)}
                 placeholder={
                   isAtTokenLimit
                     ? "Token limit reached — upgrade to continue"
@@ -511,11 +539,22 @@ export function ChatViewPage() {
 
       {/* Token Limit Modal */}
       <TokenLimitModal
-        isOpen={showLimitModal}
-        onClose={() => setShowLimitModal(false)}
+        isOpen={showTokenLimitModal}
+        onClose={() => setShowTokenLimitModal(false)}
         tokensUsed={user?.tokens_used || 0}
         tokenLimit={user?.token_limit || 5000}
         currentPlan={user?.plan || "free"}
+      />
+
+      {/* Document Limit Modal */}
+      <LimitModal
+        isOpen={showDocumentLimitModal}
+        onClose={() => setShowDocumentLimitModal(false)}
+        limitType="documents"
+        onUpgrade={() => {
+          setShowDocumentLimitModal(false);
+          window.location.href = "/upgrade";
+        }}
       />
     </>
   );
