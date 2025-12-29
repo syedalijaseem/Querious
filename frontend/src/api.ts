@@ -13,12 +13,33 @@ import type {
 
 const API_BASE = "/api"; // Relative URL - proxied by Vite in dev, same-origin in prod
 
+// Track if we're currently refreshing to avoid multiple refresh calls
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
 /**
- * Generic fetch wrapper with error handling.
+ * Attempt to refresh the access token using the refresh token.
+ * Returns true if successful, false otherwise.
+ */
+async function tryRefreshToken(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Generic fetch wrapper with error handling and auto-refresh on 401.
  */
 async function fetchApi<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  isRetry = false
 ): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {
     credentials: "include", // Include cookies for auth
@@ -28,6 +49,35 @@ async function fetchApi<T>(
     },
     ...options,
   });
+
+  // Handle 401 Unauthorized - attempt token refresh
+  if (response.status === 401 && !isRetry && !endpoint.includes("/auth/")) {
+    // Avoid refreshing during auth endpoints
+
+    // If already refreshing, wait for that to complete
+    if (isRefreshing && refreshPromise) {
+      const refreshed = await refreshPromise;
+      if (refreshed) {
+        return fetchApi<T>(endpoint, options, true);
+      }
+    } else {
+      // Start refresh
+      isRefreshing = true;
+      refreshPromise = tryRefreshToken();
+      const refreshed = await refreshPromise;
+      isRefreshing = false;
+      refreshPromise = null;
+
+      if (refreshed) {
+        // Retry original request with new token
+        return fetchApi<T>(endpoint, options, true);
+      }
+    }
+
+    // Refresh failed - redirect to login
+    window.location.href = "/login";
+    throw new Error("Session expired");
+  }
 
   if (!response.ok) {
     const errorBody = await response
