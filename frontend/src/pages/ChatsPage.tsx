@@ -20,11 +20,14 @@ import {
 } from "../hooks/useChats";
 import { useAuth } from "../context/AuthContext";
 import { LimitModal } from "../components/LimitModal";
+import { ConfirmationModal } from "../components/ConfirmationModal";
 
 export function ChatsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [chatToDelete, setChatToDelete] = useState<string | null>(null);
   const { user } = useAuth();
 
   const { data: chats = [], isLoading } = useStandaloneChats();
@@ -65,10 +68,16 @@ export function ChatsPage() {
     }
   }
 
-  async function handleDeleteChat(id: string, e: React.MouseEvent) {
+  function handleDeleteClick(id: string, e: React.MouseEvent) {
     e.stopPropagation();
-    if (confirm("Delete this chat?")) {
-      deleteChat.mutate(id);
+    setChatToDelete(id);
+    setShowDeleteConfirm(true);
+  }
+
+  function confirmDelete() {
+    if (chatToDelete) {
+      deleteChat.mutate(chatToDelete);
+      setChatToDelete(null);
     }
   }
 
@@ -206,7 +215,7 @@ export function ChatsPage() {
                       <Pin className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={(e) => handleDeleteChat(chat.id, e)}
+                      onClick={(e) => handleDeleteClick(chat.id, e)}
                       className="p-2 hover:bg-[#fdeaea] dark:hover:bg-[#2e1616] text-[#737373] dark:text-[#a0a0a0] hover:text-[#dc2626] dark:hover:text-[#f87171] rounded-lg transition-colors"
                       title="Delete"
                     >
@@ -226,6 +235,20 @@ export function ChatsPage() {
         onClose={() => setShowLimitModal(false)}
         limitType="chats"
         currentPlan={user?.plan || "free"}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setChatToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Chat?"
+        message="This will permanently delete this chat and all its messages. This action cannot be undone."
+        confirmText="Delete"
+        variant="destructive"
       />
     </>
   );
