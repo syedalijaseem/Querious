@@ -870,25 +870,37 @@ Rules:
                             except json_lib.JSONDecodeError:
                                 continue
             
-            # Step 8: Estimate tokens and emit done
-            estimated_tokens = int(len(full_response.split()) * 1.3)
+            # Step 8: Calculate tokens (input + output)
+            # Count input tokens: system prompt + context + history + user message
+            input_text = system_prompt + context_block + request.question
+            for msg in recent_history:
+                input_text += msg.get("content", "")
+            
+            # Estimate: words × 1.3 (average tokens per word for English)
+            input_tokens = int(len(input_text.split()) * 1.3)
+            output_tokens = int(len(full_response.split()) * 1.3)
+            total_tokens = input_tokens + output_tokens
             
             yield {
                 "event": "done",
                 "data": json_lib.dumps({
                     "full_response": full_response,
-                    "tokens_used": estimated_tokens,
+                    "tokens_used": total_tokens,
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
                     "sources": sources
                 })
             }
             
-            # Step 9: Update token usage
+            # Step 9: Update token usage in database
             if request.user_id or user.id:
                 uid = request.user_id or user.id
                 db.users.update_one(
                     {"id": uid},
-                    {"$inc": {"tokens_used": estimated_tokens}}
+                    {"$inc": {"tokens_used": total_tokens}}
                 )
+                logger.info("Updated tokens_used for user %s: +%d (input: %d, output: %d)", 
+                           uid, total_tokens, input_tokens, output_tokens)
                 
         except Exception as e:
             yield {
