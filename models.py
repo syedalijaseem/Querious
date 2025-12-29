@@ -98,6 +98,7 @@ class User(BaseModel):
     plan: SubscriptionPlan = SubscriptionPlan.FREE  # User's subscription plan
     tokens_used: int = 0  # Cumulative tokens used
     token_limit: int = 5000  # Token limit based on plan (FREE=5000, PRO=500000, PREMIUM=2000000)
+    active_documents_count: int = 0  # Current documents owned (decrements on delete)
     
     @field_validator('email')
     @classmethod
@@ -250,6 +251,7 @@ class UserResponse(BaseModel):
     plan: SubscriptionPlan = SubscriptionPlan.FREE
     tokens_used: int = 0
     token_limit: int = 5000
+    active_documents_count: int = 0
 
 
 class AuthResponse(BaseModel):

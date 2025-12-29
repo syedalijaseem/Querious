@@ -104,6 +104,7 @@ export interface User {
   plan: SubscriptionPlan;
   tokens_used: number;
   token_limit: number;
+  active_documents_count: number;
 }
 
 export interface AuthResponse {

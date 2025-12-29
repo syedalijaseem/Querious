@@ -118,8 +118,16 @@ async def get_project(project_id: str, user: User = Depends(get_current_user)):
 
 @router.delete("/projects/{project_id}")
 async def delete_project(project_id: str, user: User = Depends(get_current_user)):
-    """Delete a project owned by the current user."""
+    """Delete a project and all associated data (documents, chunks, vectors, S3).
+    
+    Deletion order (per document):
+    1. Vector embeddings (by document_id)
+    2. Chunks (by document_id)
+    3. S3 file (by s3_key)
+    Then: document metadata, scope links, messages, chats, project
+    """
     from vector_db import MongoDBStorage
+    from document_service import safe_delete_document
     
     db = get_db()
     
@@ -129,45 +137,54 @@ async def delete_project(project_id: str, user: User = Depends(get_current_user)
         raise HTTPException(status_code=404, detail="Project not found")
     
     vector_store = MongoDBStorage()
+    total_deleted = 0
+    all_doc_ids = []
     
-    # Get project documents for S3 cleanup
-    project_docs = list(db.documents.find({"scope_type": "project", "scope_id": project_id}))
+    # 1. Get and delete project-level documents via document_scopes
+    project_scope_links = list(db.document_scopes.find({"scope_type": "project", "scope_id": project_id}))
+    project_doc_ids = [link["document_id"] for link in project_scope_links]
+    project_docs = list(db.documents.find({"id": {"$in": project_doc_ids}})) if project_doc_ids else []
     
-    # Delete from S3
     for doc in project_docs:
-        if doc.get("s3_key"):
-            try:
-                file_storage.delete_file(doc["s3_key"])
-            except Exception as e:
-                logger.warning("Failed to delete S3 file %s: %s", doc.get('s3_key'), e)
+        if safe_delete_document(db, vector_store, file_storage, doc, project_id):
+            total_deleted += 1
+            all_doc_ids.append(doc["id"])
     
-    # Delete from vector store
-    vector_store.delete_by_scope("project", project_id)
-    
-    # Delete project documents from DB
-    db.documents.delete_many({"scope_type": "project", "scope_id": project_id})
-    
-    # Delete project chats and their content
+    # 2. Delete all chats and their documents
     chats = list(db.chats.find({"project_id": project_id}))
     for chat in chats:
-        # Get chat documents for S3 cleanup
-        chat_docs = list(db.documents.find({"scope_type": "chat", "scope_id": chat["id"]}))
+        # Get chat documents via document_scopes
+        chat_scope_links = list(db.document_scopes.find({"scope_type": "chat", "scope_id": chat["id"]}))
+        chat_doc_ids = [link["document_id"] for link in chat_scope_links]
+        chat_docs = list(db.documents.find({"id": {"$in": chat_doc_ids}})) if chat_doc_ids else []
+        
         for doc in chat_docs:
-            if doc.get("s3_key"):
-                try:
-                    file_storage.delete_file(doc["s3_key"])
-                except Exception as e:
-                    logger.warning("Failed to delete S3 file %s: %s", doc.get('s3_key'), e)
+            if safe_delete_document(db, vector_store, file_storage, doc, chat["id"]):
+                total_deleted += 1
+                all_doc_ids.append(doc["id"])
         
-        # Delete from vector store
-        vector_store.delete_by_scope("chat", chat["id"])
-        
-        # Delete chat documents and messages from DB
-        db.documents.delete_many({"scope_type": "chat", "scope_id": chat["id"]})
+        # Delete scope links and messages for this chat
+        db.document_scopes.delete_many({"scope_type": "chat", "scope_id": chat["id"]})
         db.messages.delete_many({"chat_id": chat["id"]})
     
+    # 3. Delete document metadata
+    if all_doc_ids:
+        db.documents.delete_many({"id": {"$in": all_doc_ids}})
+    
+    # Delete project scope links
+    db.document_scopes.delete_many({"scope_type": "project", "scope_id": project_id})
+    
+    # Delete chats and project
     db.chats.delete_many({"project_id": project_id})
     db.projects.delete_one({"id": project_id})
+    
+    # 4. Decrement user's active document count (with safety guard)
+    if total_deleted > 0:
+        db.users.update_one(
+            {"id": user.id, "active_documents_count": {"$gte": total_deleted}},
+            {"$inc": {"active_documents_count": -total_deleted}}
+        )
+    
     return {"status": "deleted"}
 
 
@@ -264,8 +281,16 @@ async def update_chat(chat_id: str, request: UpdateChatRequest, user: User = Dep
 
 @router.delete("/chats/{chat_id}")
 async def delete_chat(chat_id: str, user: User = Depends(get_current_user)):
-    """Delete a chat owned by the current user."""
+    """Delete a chat and all associated data (documents, chunks, vectors, S3).
+    
+    Deletion order (per document):
+    1. Vector embeddings (by document_id)
+    2. Chunks (by document_id)
+    3. S3 file (by s3_key)
+    Then: document metadata, scope links, messages, chat
+    """
     from vector_db import MongoDBStorage
+    from document_service import safe_delete_document
     
     db = get_db()
     
@@ -276,24 +301,37 @@ async def delete_chat(chat_id: str, user: User = Depends(get_current_user)):
     
     vector_store = MongoDBStorage()
     
-    # Get chat documents for S3 cleanup
-    chat_docs = list(db.documents.find({"scope_type": "chat", "scope_id": chat_id}))
+    # Get document IDs via document_scopes junction table
+    scope_links = list(db.document_scopes.find({"scope_type": "chat", "scope_id": chat_id}))
+    doc_ids = [link["document_id"] for link in scope_links]
     
-    # Delete from S3
+    # Get actual documents
+    chat_docs = list(db.documents.find({"id": {"$in": doc_ids}})) if doc_ids else []
+    
+    # Delete each document using helper (vectors, chunks, S3)
+    deleted_count = 0
     for doc in chat_docs:
-        if doc.get("s3_key"):
-            try:
-                file_storage.delete_file(doc["s3_key"])
-            except Exception as e:
-                logger.warning("Failed to delete S3 file %s: %s", doc.get('s3_key'), e)
+        if safe_delete_document(db, vector_store, file_storage, doc, chat_id):
+            deleted_count += 1
     
-    # Delete from vector store
-    vector_store.delete_by_scope("chat", chat_id)
+    # Delete document metadata
+    if doc_ids:
+        db.documents.delete_many({"id": {"$in": doc_ids}})
     
-    # Delete from DB
+    # Delete scope links
+    db.document_scopes.delete_many({"scope_type": "chat", "scope_id": chat_id})
+    
+    # Delete messages and chat
     db.messages.delete_many({"chat_id": chat_id})
-    db.documents.delete_many({"scope_type": "chat", "scope_id": chat_id})
     db.chats.delete_one({"id": chat_id})
+    
+    # Decrement user's active document count (with $gte safety guard)
+    if deleted_count > 0:
+        db.users.update_one(
+            {"id": user.id, "active_documents_count": {"$gte": deleted_count}},
+            {"$inc": {"active_documents_count": -deleted_count}}
+        )
+    
     return {"status": "deleted"}
 
 
@@ -494,6 +532,15 @@ async def upload_document(
     plan = user.plan or "free"
     max_docs_per_scope = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])["docs_per_scope"]
     
+    # Check overall document limit (active_documents_count)
+    max_total_docs = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])["documents"]
+    current_active = getattr(user, 'active_documents_count', 0) or 0
+    if max_total_docs is not None and current_active >= max_total_docs:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "limit_reached", "resource": "documents", "limit": max_total_docs}
+        )
+    
     # Check scope limits (count and total size)
     scope_docs = list(db.document_scopes.aggregate([
         {"$match": {"scope_type": scope_type, "scope_id": scope_id}},
@@ -599,6 +646,12 @@ async def upload_document(
         scope_id=scope_id
     )
     db.document_scopes.insert_one(scope_link.model_dump())
+    
+    # Increment user's active document count AFTER successful commit
+    db.users.update_one(
+        {"id": user.id},
+        {"$inc": {"active_documents_count": 1}}
+    )
     
     return {
         "document": doc.model_dump(),

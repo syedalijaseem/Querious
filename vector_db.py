@@ -161,6 +161,21 @@ class MongoDBStorage:
         })
         return result.deleted_count
 
+    def delete_by_document_id(self, document_id: str) -> int:
+        """Delete all embeddings for a specific document.
+        
+        This is the preferred deletion method during cascade deletion.
+        Deletes by document_id, not by scope, to ensure all chunks are removed.
+        
+        Args:
+            document_id: The document ID whose embeddings to delete
+            
+        Returns:
+            Number of records deleted
+        """
+        result = self.collection.delete_many({"document_id": document_id})
+        return result.deleted_count
+
     def delete_by_source(self, source: str, scope_type: str = None, scope_id: str = None) -> int:
         """Delete all embeddings for a specific source document.
         
