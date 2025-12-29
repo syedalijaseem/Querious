@@ -43,10 +43,34 @@ export function useDeleteProject() {
 
   return useMutation({
     mutationFn: (id: string) => api.deleteProject(id),
-    onSuccess: (_, id) => {
+    // Optimistic update - remove immediately from UI
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: projectKeys.all });
+
+      // Snapshot previous value
+      const previousProjects = queryClient.getQueryData<Project[]>(
+        projectKeys.all
+      );
+
+      // Optimistically remove from list
       queryClient.setQueryData<Project[]>(projectKeys.all, (old) =>
         old?.filter((p) => p.id !== id)
       );
+
+      return { previousProjects };
+    },
+    onError: (_err, _id, context) => {
+      // Rollback on error
+      if (context?.previousProjects) {
+        queryClient.setQueryData(projectKeys.all, context.previousProjects);
+      }
+    },
+    onSuccess: (_, id) => {
+      queryClient.removeQueries({ queryKey: projectKeys.detail(id) });
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey: projectKeys.all });
     },
   });

@@ -109,9 +109,35 @@ export function useDeleteChat() {
 
   return useMutation({
     mutationFn: (id: string) => api.deleteChat(id),
+    // Optimistic update - remove immediately from UI
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: chatKeys.standalone });
+
+      // Snapshot previous value
+      const previousChats = queryClient.getQueryData<Chat[]>(
+        chatKeys.standalone
+      );
+
+      // Optimistically remove from list
+      queryClient.setQueryData<Chat[]>(chatKeys.standalone, (old) =>
+        old?.filter((c) => c.id !== id)
+      );
+
+      return { previousChats };
+    },
+    onError: (_err, _id, context) => {
+      // Rollback on error
+      if (context?.previousChats) {
+        queryClient.setQueryData(chatKeys.standalone, context.previousChats);
+      }
+    },
     onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: chatKeys.all });
       queryClient.removeQueries({ queryKey: chatKeys.detail(id) });
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: chatKeys.all });
     },
   });
 }
