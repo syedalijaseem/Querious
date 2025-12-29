@@ -4,7 +4,7 @@
  * - Tablet: Collapsed (64px icons) with hover expand to 256px
  * - Desktop: Full 256px, can be toggled closed with Ctrl+B
  */
-import { useEffect, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   MessageSquare,
@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useUI } from "../context/UIContext";
+import { useCreateChat } from "../hooks/useChats";
+import { LimitModal } from "../components/LimitModal";
 import logo from "../assets/logo.png";
 
 interface MainLayoutProps {
@@ -36,6 +38,29 @@ export function MainLayout({ children }: MainLayoutProps) {
     isTablet,
     isDesktop,
   } = useUI();
+
+  const createChat = useCreateChat();
+  const [showLimitModal, setShowLimitModal] = useState(false);
+
+  async function handleNewChat() {
+    try {
+      const newChat = await createChat.mutateAsync({ title: "New Chat" });
+      navigate(`/chat/${newChat.id}`);
+      if (isMobile) setSidebarOpen(false);
+    } catch (error: unknown) {
+      // Check for limit error (403)
+      if (
+        error &&
+        typeof error === "object" &&
+        "status" in error &&
+        (error as { status: number }).status === 403
+      ) {
+        setShowLimitModal(true);
+      } else {
+        console.error("Failed to create chat:", error);
+      }
+    }
+  }
 
   // Close sidebar on mobile after navigation
   useEffect(() => {
@@ -163,20 +188,21 @@ export function MainLayout({ children }: MainLayoutProps) {
           {/* New Chat Button */}
           <div className="p-3 flex-shrink-0">
             <button
-              onClick={() => {
-                navigate("/");
-                if (isMobile) setSidebarOpen(false);
-              }}
+              onClick={handleNewChat}
+              disabled={createChat.isPending}
               className={`
                 ${showLabels ? "w-full px-4" : "w-10 mx-auto justify-center"} 
                 py-2.5 flex items-center gap-2
                 bg-[#0d9488] hover:bg-[#0f766e] dark:bg-[#2dd4bf] dark:hover:bg-[#5eead4] 
                 text-white dark:text-[#0f2e2b] 
                 rounded-xl font-medium transition-all
+                disabled:opacity-50 disabled:cursor-not-allowed
               `}
             >
               <Plus className="w-5 h-5" />
-              {showLabels && <span>New Chat</span>}
+              {showLabels && (
+                <span>{createChat.isPending ? "Creating..." : "New Chat"}</span>
+              )}
             </button>
           </div>
 
@@ -289,6 +315,14 @@ export function MainLayout({ children }: MainLayoutProps) {
         {/* Page Content */}
         <div className="flex-1 overflow-hidden">{children}</div>
       </main>
+
+      {/* Chat Limit Modal */}
+      <LimitModal
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        limitType="chats"
+        currentPlan={user?.plan || "free"}
+      />
     </div>
   );
 }
