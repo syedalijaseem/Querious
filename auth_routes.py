@@ -502,8 +502,15 @@ async def list_sessions(request: Request, user: User = Depends(get_current_user)
     current_token = request.cookies.get("refresh_token")
     current_hash = hash_token(current_token) if current_token else None
     
+    now = datetime.now(timezone.utc)
+    
+    # Only fetch non-revoked and non-expired sessions
     tokens = list(db.refresh_tokens.find(
-        {"user_id": user.id, "revoked": False},
+        {
+            "user_id": user.id, 
+            "revoked": False,
+            "expires_at": {"$gt": now}  # Only non-expired
+        },
         {"_id": 0}
     ))
     

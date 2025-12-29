@@ -41,10 +41,10 @@ export function TokenLimitModal({
 
   if (!isOpen) return null;
 
-  function handleUpgrade(plan: "pro" | "premium") {
-    // Redirect to checkout page
-    window.location.href = `/checkout?plan=${plan}`;
-  }
+  // function handleUpgrade(plan: "pro" | "premium") {
+  //   // Redirect to checkout page
+  //   window.location.href = `/checkout?plan=${plan}`;
+  // }
 
   const freePlanFeatures = [
     { text: "5,000 tokens (one-time)", included: true },
@@ -121,19 +121,19 @@ export function TokenLimitModal({
               name="Pro"
               price="$10"
               features={proPlanFeatures}
-              buttonText="Upgrade to Pro"
+              buttonText="Coming soon..."
               isCurrent={currentPlan === "pro"}
-              onClick={() => handleUpgrade("pro")}
+              // onClick={() => handleUpgrade("pro")}
             />
             <PlanCard
               name="Premium"
               price="$25"
               features={premiumPlanFeatures}
-              buttonText="Upgrade to Premium"
+              buttonText="Coming soon..."
               isCurrent={currentPlan === "premium"}
               isHighlighted
               highlightLabel="Best Value"
-              onClick={() => handleUpgrade("premium")}
+              // onClick={() => handleUpgrade("premium")}
             />
           </div>
 

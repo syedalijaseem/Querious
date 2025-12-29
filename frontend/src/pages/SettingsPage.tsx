@@ -13,7 +13,7 @@ interface SettingsPageProps {
 }
 
 export function SettingsPage({ onClose }: SettingsPageProps) {
-  const { user, logout, refreshUser } = useAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<
     "profile" | "appearance" | "security" | "sessions"
   >("profile");
@@ -53,7 +53,7 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
           {[
             { id: "profile", label: "Profile" },
             { id: "appearance", label: "Appearance" },
-            { id: "security", label: "Security" },
+            // { id: "security", label: "Security" }, // Coming soon
             { id: "sessions", label: "Sessions" },
           ].map((tab) => (
             <button
@@ -72,11 +72,9 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
 
         {/* Content */}
         <div className="bg-[#f8f8f8] dark:bg-[#242424] rounded-2xl border border-[#e8e8e8] dark:border-[#3a3a3a] p-6">
-          {activeTab === "profile" && (
-            <ProfileTab user={user} onUpdate={refreshUser} />
-          )}
+          {activeTab === "profile" && <ProfileTab user={user} />}
           {activeTab === "appearance" && <AppearanceTab />}
-          {activeTab === "security" && <SecurityTab onLogout={logout} />}
+          {/* {activeTab === "security" && <SecurityTab onLogout={logout} />} */}
           {activeTab === "sessions" && <SessionsTab />}
         </div>
       </div>
@@ -87,100 +85,32 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
 // --- Profile Tab ---
 function ProfileTab({
   user,
-  onUpdate,
 }: {
   user: { name?: string; email?: string } | null;
-  onUpdate: () => void;
 }) {
-  const [name, setName] = useState(user?.name || "");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setMessage(null);
-
-    try {
-      await api.updateProfile({ name });
-      setMessage({ type: "success", text: "Profile updated successfully" });
-      onUpdate();
-    } catch (err) {
-      setMessage({
-        type: "error",
-        text: err instanceof Error ? err.message : "Update failed",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <div>
       <h2 className="text-lg font-semibold text-[#1a1a1a] dark:text-[#ececec] mb-6">
         Profile Information
       </h2>
 
-      {message && (
-        <div
-          className={`mb-6 px-4 py-3 rounded-lg text-sm ${
-            message.type === "success"
-              ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"
-              : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 dark:text-zinc-300 mb-1.5">
-            Email
-          </label>
-          <input
-            type="email"
-            value={user?.email || ""}
-            disabled
-            className="w-full px-4 py-3 rounded-xl border border-[#e8e8e8] dark:border-[#3a3a3a] 
-                       bg-neutral-100 dark:bg-[#242424] text-[#a3a3a3] dark:text-[#a0a0a0]
-                       cursor-not-allowed"
-          />
-          <p className="mt-1.5 text-xs text-[#a3a3a3]">
-            Contact support to change your email
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 dark:text-zinc-300 mb-1.5">
-            Name
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-zinc-300 dark:border-[#3a3a3a] 
-                       bg-[#f8f8f8] dark:bg-[#242424] text-[#1a1a1a] dark:text-[#ececec]
-                       focus:ring-2 focus:ring-[#0d9488] focus:border-transparent
-                       transition-all outline-none"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-6 py-2.5 rounded-xl font-medium text-sm
-                     bg-neutral-800 dark:bg-[#f8f8f8] text-white dark:text-[#1a1a1a]
-                     hover:bg-neutral-800 dark:hover:bg-neutral-100
-                     disabled:opacity-50 disabled:cursor-not-allowed
-                     transition-all"
-        >
-          {loading ? "Saving..." : "Save changes"}
-        </button>
-      </form>
+      {/* Email - read only */}
+      <div className="max-w-md">
+        <label className="block text-sm font-medium text-neutral-700 dark:text-zinc-300 mb-1.5">
+          Email
+        </label>
+        <input
+          type="email"
+          value={user?.email || ""}
+          disabled
+          className="w-full px-4 py-3 rounded-xl border border-[#e8e8e8] dark:border-[#3a3a3a] 
+                     bg-neutral-100 dark:bg-[#242424] text-[#a3a3a3] dark:text-[#a0a0a0]
+                     cursor-not-allowed"
+        />
+        <p className="mt-1.5 text-xs text-[#a3a3a3]">
+          Contact support to update your account details
+        </p>
+      </div>
     </div>
   );
 }
@@ -232,8 +162,8 @@ function AppearanceTab() {
   );
 }
 
-// --- Security Tab ---
-function SecurityTab({ onLogout }: { onLogout: () => void }) {
+// --- Security Tab (Coming Soon) ---
+export function SecurityTab({ onLogout }: { onLogout: () => void }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
