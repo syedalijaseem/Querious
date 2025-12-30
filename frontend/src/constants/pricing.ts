@@ -42,8 +42,8 @@ export const pricingTiers: PricingTier[] = [
     features: [
       { text: "2,000,000 tokens/month", included: true },
       { text: "Unlimited chats", included: true },
-      { text: "5 projects", included: true },
-      { text: "25 documents", included: true },
+      { text: "10 projects", included: true },
+      { text: "30 documents", included: true },
       { text: "Gemini & GPT-5 mini", included: true },
       { text: "Thorough quality preset", included: true },
     ],

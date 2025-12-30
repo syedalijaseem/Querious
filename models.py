@@ -97,7 +97,7 @@ class User(BaseModel):
     last_login: Optional[datetime] = None
     plan: SubscriptionPlan = SubscriptionPlan.FREE  # User's subscription plan
     tokens_used: int = 0  # Cumulative tokens used
-    token_limit: int = 5000  # Token limit based on plan (FREE=5000, PRO=500000, PREMIUM=2000000)
+    token_limit: int = 10000  # Token limit based on plan (FREE=10000, PRO=500000, PREMIUM=2000000)
     active_documents_count: int = 0  # Current documents owned (decrements on delete)
     
     @field_validator('email')
@@ -250,7 +250,7 @@ class UserResponse(BaseModel):
     last_login: Optional[datetime] = None
     plan: SubscriptionPlan = SubscriptionPlan.FREE
     tokens_used: int = 0
-    token_limit: int = 5000
+    token_limit: int = 10000
     active_documents_count: int = 0
 
 

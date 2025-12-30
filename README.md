@@ -1,5 +1,7 @@
 # Querious - Chat with your documents
 
+![Landing Page](docs/screenshots/landing_page.png)
+
 Querious is an intelligent document Q&A agent that allows you to upload PDFs and ask questions in plain English. It uses RAG (Retrieval-Augmented Generation) to provide accurate answers with source citations.
 
 ## Features
@@ -9,14 +11,40 @@ Querious is an intelligent document Q&A agent that allows you to upload PDFs and
 - **Source Citations**: Every answer includes citations linking back to the specific part of the document usable for verification.
 - **Project Organization**: Group chats and documents into projects.
 - **Secure Authentication**: Full user management with secure password hashing and session control.
-- **Modern UI**: specialized interface for reading documents and chatting simultaneously.
+- **Dark/Light Themes**: Modern interface with theme support.
+
+## Screenshots
+
+### Chat Interface
+
+![Chat - Dark Mode](docs/screenshots/chat_dark.png)
+
+### Projects
+
+![Projects](docs/screenshots/projects_dark.png)
 
 ## Tech Stack
 
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS, TanStack Query
-- **Backend**: Python (FastAPI), MongoDB (Data), Qdrant (Vectors)
+- **Backend**: Python (FastAPI), MongoDB (Data + Vector Storage)
 - **AI**: OpenAI (Embeddings), DeepSeek (LLM)
 - **Infrastructure**: Inngest (Background Jobs), AWS S3 (File Storage)
+
+## Architecture
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────────┐
+│   React     │────▶│   FastAPI   │────▶│    MongoDB      │
+│   Frontend  │     │   Backend   │     │  (Data+Vectors) │
+└─────────────┘     └──────┬──────┘     └─────────────────┘
+                           │
+              ┌────────────┼────────────┐
+              ▼            ▼            ▼
+        ┌─────────┐  ┌──────────┐  ┌─────────┐
+        │ OpenAI  │  │ DeepSeek │  │   S3    │
+        │Embeddings│  │   LLM    │  │ Storage │
+        └─────────┘  └──────────┘  └─────────┘
+```
 
 ## Setup Instructions
 
@@ -25,7 +53,6 @@ Querious is an intelligent document Q&A agent that allows you to upload PDFs and
 - Python 3.10+
 - Node.js 18+
 - MongoDB Atlas account
-- Qdrant Cloud cluster
 - AWS S3 bucket
 - OpenAI & DeepSeek API keys
 
@@ -48,11 +75,10 @@ cp frontend/.env.example frontend/.env.local
 1. **Backend**:
 
    ```bash
-   # Create virtual environment
-   python -m venv .venv
-   source .venv/bin/activate
+   # Using uv (recommended)
+   uv sync
 
-   # Install dependencies
+   # Or using pip
    pip install -r requirements.txt
    ```
 
@@ -67,7 +93,7 @@ cp frontend/.env.example frontend/.env.local
 1. **Start Backend**:
 
    ```bash
-   uvicorn main:app --reload --host 127.0.0.1 --port 8000
+   uv run uvicorn main:app --reload --host 127.0.0.1 --port 8000
    ```
 
 2. **Start Frontend**:
@@ -81,6 +107,14 @@ cp frontend/.env.example frontend/.env.local
    ```bash
    npx inngest-cli@latest dev -u http://127.0.0.1:8000/api/inngest
    ```
+
+## Plan Limits
+
+| Plan    | Tokens        | Chats     | Projects  | Documents |
+| ------- | ------------- | --------- | --------- | --------- |
+| Free    | 10,000        | 3         | 1         | 3         |
+| Pro     | 2,000,000/mo  | Unlimited | 10        | 30        |
+| Premium | 15,000,000/mo | Unlimited | Unlimited | Unlimited |
 
 ## License
 

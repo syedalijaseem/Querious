@@ -51,7 +51,7 @@ def get_db():
 # --- Plan-based Token Limits ---
 
 PLAN_TOKEN_LIMITS = {
-    "free": 5000,
+    "free": 10000,
     "pro": 500000,
     "premium": 2000000,
 }

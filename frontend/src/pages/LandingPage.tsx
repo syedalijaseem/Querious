@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import { pricingTiers } from "../constants/pricing";
 import logo from "../assets/logo.png";
 import {
@@ -21,6 +22,8 @@ import {
   CheckCircle,
   Github,
   Linkedin,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 // Feature data
@@ -79,8 +82,16 @@ const steps = [
 export function LandingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { actualTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // For hero screenshot toggle - defaults to match system/app theme
+  const [isDarkDemo, setIsDarkDemo] = useState(actualTheme === "dark");
+
+  // Sync demo state with theme changes
+  useEffect(() => {
+    setIsDarkDemo(actualTheme === "dark");
+  }, [actualTheme]);
 
   // Track scroll for navbar blur
   useEffect(() => {
@@ -212,7 +223,7 @@ export function LandingPage() {
 
       {/* ========== HERO SECTION ========== */}
       <section className="pt-32 pb-20 px-4">
-        <div className="max-w-4xl mx-auto text-center">
+        <div className="max-w-5xl mx-auto text-center">
           <h1 className="animate-fade-up text-4xl sm:text-5xl lg:text-6xl font-bold text-[var(--color-text-primary)] leading-tight">
             Chat with your documents.
             <br />
@@ -239,6 +250,44 @@ export function LandingPage() {
               See how it works
             </button>
           </div>
+
+          {/* Hero Screenshot with Theme Toggle */}
+          <div className="animate-fade-up animate-delay-400 mt-16 relative max-w-4xl mx-auto">
+            <div className="relative rounded-xl overflow-hidden shadow-2xl border border-[var(--color-border)]">
+              {/* Dark mode screenshot */}
+              <img
+                src="/screenshots/hero_dark.png"
+                alt="Querious chat interface - dark mode"
+                className={`w-full transition-opacity duration-300 ${
+                  isDarkDemo ? "opacity-100" : "opacity-0 absolute inset-0"
+                }`}
+              />
+              {/* Light mode screenshot */}
+              <img
+                src="/screenshots/hero_light.png"
+                alt="Querious chat interface - light mode"
+                className={`w-full transition-opacity duration-300 ${
+                  !isDarkDemo ? "opacity-100" : "opacity-0 absolute inset-0"
+                }`}
+              />
+              {/* Theme toggle button */}
+              <button
+                onClick={() => setIsDarkDemo(!isDarkDemo)}
+                className="absolute top-4 right-4 p-2.5 bg-[var(--color-surface)]/90 backdrop-blur-sm rounded-full border border-[var(--color-border)] shadow-lg hover:scale-110 transition-transform"
+                title={
+                  isDarkDemo ? "Switch to light mode" : "Switch to dark mode"
+                }
+              >
+                {isDarkDemo ? (
+                  <Sun size={18} className="text-amber-500" />
+                ) : (
+                  <Moon size={18} className="text-indigo-500" />
+                )}
+              </button>
+            </div>
+            {/* Subtle glow effect */}
+            <div className="absolute -inset-4 bg-gradient-to-r from-[var(--color-accent)]/20 via-transparent to-[var(--color-accent)]/20 blur-3xl -z-10 opacity-50" />
+          </div>
         </div>
       </section>
 
@@ -264,6 +313,104 @@ export function LandingPage() {
                 </p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ========== FEATURE SHOWCASE ========== */}
+      <section className="py-20 px-4">
+        <div className="max-w-6xl mx-auto space-y-24">
+          {/* Smart Search Feature */}
+          <div className="animate-on-scroll grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="order-2 lg:order-1">
+              <h3 className="text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)] mb-4">
+                Smart Vector Search
+              </h3>
+              <p className="text-lg text-[var(--color-text-secondary)] mb-6">
+                Our AI finds the most relevant passages from your documents
+                instantly. Watch as it searches through your content to surface
+                exactly what you need.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-3 text-[var(--color-text-secondary)]">
+                  <CheckCircle
+                    size={20}
+                    className="text-[var(--color-accent)] flex-shrink-0"
+                  />
+                  Semantic understanding, not just keywords
+                </li>
+                <li className="flex items-center gap-3 text-[var(--color-text-secondary)]">
+                  <CheckCircle
+                    size={20}
+                    className="text-[var(--color-accent)] flex-shrink-0"
+                  />
+                  Results ranked by relevance
+                </li>
+                <li className="flex items-center gap-3 text-[var(--color-text-secondary)]">
+                  <CheckCircle
+                    size={20}
+                    className="text-[var(--color-accent)] flex-shrink-0"
+                  />
+                  Page references included
+                </li>
+              </ul>
+            </div>
+            <div className="order-1 lg:order-2">
+              <div className="relative">
+                <img
+                  src={`/screenshots/search_${actualTheme}.png`}
+                  alt="Smart search in action"
+                  className="rounded-xl shadow-2xl border border-[var(--color-border)] transform rotate-1 hover:rotate-0 transition-transform duration-300"
+                />
+                <div className="absolute -inset-4 bg-gradient-to-r from-[var(--color-accent)]/10 to-transparent blur-2xl -z-10" />
+              </div>
+            </div>
+          </div>
+
+          {/* Projects Feature */}
+          <div className="animate-on-scroll grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <div className="relative">
+                <img
+                  src={`/screenshots/projects_${actualTheme}.png`}
+                  alt="Organize with projects"
+                  className="rounded-xl shadow-2xl border border-[var(--color-border)] transform -rotate-1 hover:rotate-0 transition-transform duration-300"
+                />
+                <div className="absolute -inset-4 bg-gradient-to-l from-[var(--color-accent)]/10 to-transparent blur-2xl -z-10" />
+              </div>
+            </div>
+            <div>
+              <h3 className="text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)] mb-4">
+                Organize with Projects
+              </h3>
+              <p className="text-lg text-[var(--color-text-secondary)] mb-6">
+                Group related documents into projects for focused research. Keep
+                your work organized and easily searchable.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-3 text-[var(--color-text-secondary)]">
+                  <CheckCircle
+                    size={20}
+                    className="text-[var(--color-accent)] flex-shrink-0"
+                  />
+                  Create unlimited projects
+                </li>
+                <li className="flex items-center gap-3 text-[var(--color-text-secondary)]">
+                  <CheckCircle
+                    size={20}
+                    className="text-[var(--color-accent)] flex-shrink-0"
+                  />
+                  Search within or across projects
+                </li>
+                <li className="flex items-center gap-3 text-[var(--color-text-secondary)]">
+                  <CheckCircle
+                    size={20}
+                    className="text-[var(--color-accent)] flex-shrink-0"
+                  />
+                  Easy document management
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </section>

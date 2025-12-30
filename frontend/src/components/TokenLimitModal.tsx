@@ -55,20 +55,20 @@ export function TokenLimitModal({
   ];
 
   const proPlanFeatures = [
-    { text: "500,000 tokens/month", included: true },
+    { text: "2,000,000 tokens/month", included: true },
     { text: "Unlimited chats", included: true },
-    { text: "5 projects", included: true },
-    { text: "25 documents", included: true },
+    { text: "10 projects", included: true },
+    { text: "30 documents", included: true },
     { text: "Gemini 2.5 Pro", included: true },
     { text: "GPT-4o", included: true },
     { text: "Claude Opus 4", included: true },
   ];
 
   const premiumPlanFeatures = [
-    { text: "2,000,000 tokens/month", included: true },
+    { text: "15,000,000 tokens/month", included: true },
     { text: "Unlimited everything", included: true },
     { text: "GPT-5.2", included: true },
-    { text: "Gemini 3.0", included: true },
+    { text: "Gemini 3.0 Pro", included: true },
     { text: "Claude Opus 4.5", included: true },
     { text: "All Pro models included", included: true },
   ];

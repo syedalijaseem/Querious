@@ -9,7 +9,7 @@ import type { ScopeType } from "../types";
 
 // Plan limits (must match backend PLAN_LIMITS in api_routes.py)
 const PLAN_LIMITS = {
-  free: { docs_per_scope: 1, token_limit: 5000 },
+  free: { docs_per_scope: 1, token_limit: 10000 },
   pro: { docs_per_scope: 5, token_limit: 500000 },
   premium: { docs_per_scope: 10, token_limit: 2000000 },
 } as const;
@@ -45,7 +45,7 @@ export function useTokenLimit() {
   const plan = user?.plan || "free";
 
   const tokenLimit =
-    PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS]?.token_limit || 5000;
+    PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS]?.token_limit || 10000;
   const tokensUsed = user?.tokens_used || 0;
 
   return {
@@ -68,7 +68,7 @@ export function useProjectLimit() {
     staleTime: 5000, // Cache for 5 seconds
   });
 
-  const maxProjects = plan === "free" ? 1 : plan === "pro" ? 5 : 999999; // unlimited for premium
+  const maxProjects = plan === "free" ? 1 : plan === "pro" ? 10 : 999999; // unlimited for premium
   const currentCount = projects || 0;
 
   return {

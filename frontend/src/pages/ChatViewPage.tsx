@@ -542,7 +542,7 @@ export function ChatViewPage() {
         isOpen={showTokenLimitModal}
         onClose={() => setShowTokenLimitModal(false)}
         tokensUsed={user?.tokens_used || 0}
-        tokenLimit={user?.token_limit || 5000}
+        tokenLimit={user?.token_limit || 10000}
         currentPlan={user?.plan || "free"}
       />
 
