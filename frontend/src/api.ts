@@ -432,3 +432,14 @@ export async function deleteAccount(
     method: "DELETE",
   });
 }
+
+// --- Waitlist ---
+
+export async function joinWaitlist(
+  email: string
+): Promise<{ status: string; message: string }> {
+  return fetchApi("/waitlist", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}

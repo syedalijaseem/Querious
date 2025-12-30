@@ -6,6 +6,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { pricingTiers } from "../constants/pricing";
+import * as api from "../api";
 import logo from "../assets/logo.png";
 import {
   FileText,
@@ -24,6 +25,7 @@ import {
   Linkedin,
   Sun,
   Moon,
+  Mail,
 } from "lucide-react";
 
 // Feature data
@@ -87,11 +89,41 @@ export function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   // For hero screenshot toggle - defaults to match system/app theme
   const [isDarkDemo, setIsDarkDemo] = useState(actualTheme === "dark");
+  // Waitlist form state
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistStatus, setWaitlistStatus] = useState<
+    "idle" | "loading" | "success" | "error" | "already"
+  >("idle");
+  const [waitlistMessage, setWaitlistMessage] = useState("");
 
   // Sync demo state with theme changes
   useEffect(() => {
     setIsDarkDemo(actualTheme === "dark");
   }, [actualTheme]);
+
+  // Handle waitlist signup
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!waitlistEmail.trim()) return;
+
+    setWaitlistStatus("loading");
+    try {
+      const result = await api.joinWaitlist(waitlistEmail);
+      if (result.status === "already_registered") {
+        setWaitlistStatus("already");
+      } else {
+        setWaitlistStatus("success");
+      }
+      setWaitlistMessage(result.message);
+      setWaitlistEmail("");
+      // Auto-hide after 5 seconds
+      setTimeout(() => setWaitlistStatus("idle"), 5000);
+    } catch {
+      setWaitlistStatus("error");
+      setWaitlistMessage("Something went wrong. Please try again.");
+      setTimeout(() => setWaitlistStatus("idle"), 5000);
+    }
+  };
 
   // Track scroll for navbar blur
   useEffect(() => {
@@ -511,6 +543,74 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ========== WAITLIST SECTION ========== */}
+      {!user && (
+        <section className="py-20 px-4">
+          <div className="max-w-3xl mx-auto">
+            <div className="relative p-8 sm:p-12 rounded-2xl bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-bg)] border border-[var(--color-border)] overflow-hidden">
+              {/* Decorative gradient blur */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[var(--color-accent)]/20 to-transparent blur-3xl -z-10" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-[var(--color-accent)]/10 to-transparent blur-3xl -z-10" />
+
+              <div className="text-center mb-8">
+                <h2 className="text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)] mb-3">
+                  Be the first to know
+                </h2>
+                <p className="text-[var(--color-text-secondary)]">
+                  Get notified when Pro & Premium plans launch
+                </p>
+              </div>
+
+              <form
+                onSubmit={handleWaitlistSubmit}
+                className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto"
+              >
+                <div className="relative flex-1">
+                  <Mail
+                    size={18}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={waitlistEmail}
+                    onChange={(e) => setWaitlistEmail(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:border-transparent transition-all"
+                    disabled={waitlistStatus === "loading"}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={
+                    waitlistStatus === "loading" || !waitlistEmail.trim()
+                  }
+                  className="px-8 py-3.5 rounded-xl bg-[var(--color-accent)] text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap shadow-lg shadow-[var(--color-accent)]/25"
+                >
+                  {waitlistStatus === "loading"
+                    ? "Joining..."
+                    : "Join Waitlist"}
+                </button>
+              </form>
+
+              {/* Status Alert */}
+              {waitlistStatus !== "idle" && waitlistStatus !== "loading" && (
+                <div
+                  className={`mt-6 mx-auto max-w-md px-4 py-3 rounded-xl text-sm font-medium text-center animate-fade-up ${
+                    waitlistStatus === "success"
+                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      : waitlistStatus === "already"
+                      ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                      : "bg-red-500/10 text-red-400 border border-red-500/20"
+                  }`}
+                >
+                  {waitlistMessage}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ========== FOOTER ========== */}
       <footer className="border-t border-[var(--color-border)]">

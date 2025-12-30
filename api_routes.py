@@ -78,6 +78,39 @@ class SaveMessageRequest(BaseModel):
     sources: list[str] = []
 
 
+class WaitlistRequest(BaseModel):
+    email: str
+
+
+# --- Waitlist Endpoint ---
+
+@router.post("/waitlist")
+async def join_waitlist(request: WaitlistRequest):
+    """Add email to waitlist for product launch notifications."""
+    import re
+    
+    # Basic email validation
+    email = request.email.strip().lower()
+    if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    
+    db = get_db()
+    
+    # Check if already on waitlist
+    existing = db.waitlist.find_one({"email": email})
+    if existing:
+        return {"status": "already_registered", "message": "You're already on the waitlist!"}
+    
+    # Add to waitlist
+    db.waitlist.insert_one({
+        "email": email,
+        "signed_up_at": datetime.now(timezone.utc),
+        "source": "landing_page"
+    })
+    
+    return {"status": "success", "message": "You're on the list! We'll notify you when we launch."}
+
+
 # --- Project Endpoints ---
 
 @router.post("/projects")
