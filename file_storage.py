@@ -1,7 +1,22 @@
-"""File storage abstraction for S3.
+"""File storage abstraction for S3-compatible storage.
 
-This module provides functions for uploading and downloading files to/from AWS S3.
-Configured via environment variables.
+This module provides functions for uploading and downloading files.
+Supports both AWS S3 and Cloudflare R2 (S3-compatible).
+
+CONFIGURATION:
+--------------
+For Cloudflare R2 (default):
+    R2_ACCESS_KEY_ID=your-r2-access-key
+    R2_SECRET_ACCESS_KEY=your-r2-secret-key
+    R2_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
+    R2_BUCKET_NAME=your-bucket
+
+For AWS S3 (alternative):
+    Set STORAGE_PROVIDER=s3 and use:
+    AWS_ACCESS_KEY_ID=your-aws-access-key
+    AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+    AWS_REGION=us-east-1
+    AWS_S3_BUCKET=your-bucket
 """
 import os
 import boto3
@@ -11,20 +26,46 @@ import uuid
 
 
 def get_s3_client():
-    """Get a configured S3 client."""
-    return boto3.client(
-        's3',
-        aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-        region_name=os.getenv('AWS_REGION', 'us-east-2')
-    )
+    """Get a configured S3-compatible client.
+    
+    Uses Cloudflare R2 by default. Set STORAGE_PROVIDER=s3 for AWS S3.
+    """
+    provider = os.getenv('STORAGE_PROVIDER', 'r2').lower()
+    
+    if provider == 's3':
+        # AWS S3 configuration
+        return boto3.client(
+            's3',
+            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+            region_name=os.getenv('AWS_REGION', 'us-east-1')
+        )
+    else:
+        # Cloudflare R2 configuration (default)
+        return boto3.client(
+            's3',
+            aws_access_key_id=os.getenv('R2_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.getenv('R2_SECRET_ACCESS_KEY'),
+            endpoint_url=os.getenv('R2_ENDPOINT'),
+        )
 
 
 def get_bucket_name() -> str:
-    """Get the S3 bucket name from environment."""
-    bucket = os.getenv('AWS_S3_BUCKET')
-    if not bucket:
-        raise ValueError("AWS_S3_BUCKET environment variable not set")
+    """Get the bucket name from environment.
+    
+    Uses R2_BUCKET_NAME by default, or AWS_S3_BUCKET if STORAGE_PROVIDER=s3.
+    """
+    provider = os.getenv('STORAGE_PROVIDER', 'r2').lower()
+    
+    if provider == 's3':
+        bucket = os.getenv('AWS_S3_BUCKET')
+        if not bucket:
+            raise ValueError("AWS_S3_BUCKET environment variable not set")
+    else:
+        bucket = os.getenv('R2_BUCKET_NAME')
+        if not bucket:
+            raise ValueError("R2_BUCKET_NAME environment variable not set")
+    
     return bucket
 
 

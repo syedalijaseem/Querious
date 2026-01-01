@@ -116,6 +116,32 @@ cp frontend/.env.example frontend/.env.local
 | Pro     | 2,000,000/mo  | Unlimited | 10        | 30        |
 | Premium | 15,000,000/mo | Unlimited | Unlimited | Unlimited |
 
+## Deployment
+
+### Required Environment Variables
+
+> **⚠️ CRITICAL: JWT_SECRET_KEY must be set in production!**
+>
+> Without it, sessions won't persist across server restarts.
+
+```bash
+# Generate a secure key
+openssl rand -base64 32
+
+# Required variables
+JWT_SECRET_KEY=<your-generated-key>
+ENVIRONMENT=production
+FRONTEND_URL=https://your-domain.com
+MONGODB_URI=<your-mongodb-uri>
+DEEPSEEK_API_KEY=<your-api-key>
+CLOUDFLARE_R2_*=<your-r2-credentials>
+```
+
+### Platforms
+
+- **Frontend**: Deploy to Netlify/Vercel with `npm run build`
+- **Backend**: Deploy to Render/Fly.io with `uv run uvicorn main:app`
+
 ## License
 
 This project is licensed under AGPL-3.0. If you use, modify, or deploy this code (including as a web service), you must open-source your changes under the same license.

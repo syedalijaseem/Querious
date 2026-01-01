@@ -171,10 +171,10 @@ export function UpgradePage() {
         <p className="text-center mt-12 text-[var(--color-text-secondary)]">
           Have questions?{" "}
           <a
-            href="mailto:support@querious.app"
+            href="mailto:support@querious.dev"
             className="text-[var(--color-accent)] hover:underline"
           >
-            Contact support@querious.app
+            Contact support@querious.dev
           </a>
         </p>
       </main>

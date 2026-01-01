@@ -87,22 +87,22 @@ def validate_scope_ownership(db, scope_type: ScopeType, scope_id: str, user_id: 
 
 
 def get_s3_client():
-    """Get S3 client for file storage."""
+    """Get S3-compatible client for Cloudflare R2."""
     import boto3
     return boto3.client(
         "s3",
-        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        region_name=os.getenv("AWS_REGION", "us-east-2")
+        aws_access_key_id=os.getenv("R2_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("R2_SECRET_ACCESS_KEY"),
+        endpoint_url=os.getenv("R2_ENDPOINT"),
     )
 
 
 def upload_to_s3(content: bytes, s3_key: str) -> None:
-    """Upload file content to S3."""
+    """Upload file content to R2."""
     s3 = get_s3_client()
-    bucket = os.getenv("AWS_S3_BUCKET")
+    bucket = os.getenv("R2_BUCKET_NAME")
     if not bucket:
-        raise RuntimeError("AWS_S3_BUCKET not configured")
+        raise RuntimeError("R2_BUCKET_NAME not configured")
     
     s3.put_object(
         Bucket=bucket,
@@ -113,9 +113,9 @@ def upload_to_s3(content: bytes, s3_key: str) -> None:
 
 
 def delete_from_s3(s3_key: str) -> None:
-    """Delete file from S3."""
+    """Delete file from R2."""
     s3 = get_s3_client()
-    bucket = os.getenv("AWS_S3_BUCKET")
+    bucket = os.getenv("R2_BUCKET_NAME")
     if not bucket:
         return
     

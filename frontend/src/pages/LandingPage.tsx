@@ -644,7 +644,7 @@ export function LandingPage() {
                   Pricing
                 </button>
                 <a
-                  href="mailto:support@querious.app"
+                  href="mailto:support@querious.dev"
                   className="hover:text-[var(--color-text-primary)] transition-colors"
                 >
                   Contact

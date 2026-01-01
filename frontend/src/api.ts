@@ -296,20 +296,46 @@ export async function waitForRunOutput(
   const pollInterval = 500;
 
   while (Date.now() - startTime < timeoutMs) {
-    const response = await fetch(`${INNGEST_RUNS_API}/events/${eventId}/runs`);
-    const data = await response.json();
-    const runs = data.data || [];
+    try {
+      const response = await fetch(
+        `${INNGEST_RUNS_API}/events/${eventId}/runs`
+      );
 
-    if (runs.length > 0) {
-      const run = runs[0];
-      const status = run.status;
+      // Check if response is HTML (Inngest dev server not available)
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("text/html")) {
+        // Inngest runs API not available, return silently
+        return {};
+      }
 
-      if (["Completed", "Succeeded", "Success", "Finished"].includes(status)) {
-        return run.output || {};
+      if (!response.ok) {
+        // Non-2xx response, skip this poll
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+        continue;
       }
-      if (["Failed", "Cancelled"].includes(status)) {
-        throw new Error(`Run ${status}`);
+
+      const data = await response.json();
+      const runs = data.data || [];
+
+      if (runs.length > 0) {
+        const run = runs[0];
+        const status = run.status;
+
+        if (
+          ["Completed", "Succeeded", "Success", "Finished"].includes(status)
+        ) {
+          return run.output || {};
+        }
+        if (["Failed", "Cancelled"].includes(status)) {
+          throw new Error(`Run ${status}`);
+        }
       }
+    } catch (err) {
+      // JSON parse error or network error - skip and retry
+      if (err instanceof SyntaxError) {
+        return {}; // HTML response, Inngest not available
+      }
+      throw err;
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollInterval));

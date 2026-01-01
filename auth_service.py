@@ -5,6 +5,7 @@ Provides password hashing, JWT generation/validation, and token utilities.
 import os
 import secrets
 import hashlib
+import warnings
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -16,9 +17,20 @@ load_dotenv()
 
 # --- Configuration ---
 
-# JWT Settings
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", secrets.token_urlsafe(32))
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")  # Use RS256 in production with key pair
+# JWT Settings - IMPORTANT: JWT_SECRET_KEY must be set in production!
+_jwt_secret_from_env = os.getenv("JWT_SECRET_KEY")
+if not _jwt_secret_from_env:
+    warnings.warn(
+        "JWT_SECRET_KEY not set - using random key. "
+        "Sessions will NOT persist across server restarts! "
+        "Set JWT_SECRET_KEY in production with: openssl rand -base64 32",
+        RuntimeWarning
+    )
+    JWT_SECRET_KEY = secrets.token_urlsafe(32)
+else:
+    JWT_SECRET_KEY = _jwt_secret_from_env
+
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
