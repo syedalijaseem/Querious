@@ -392,6 +392,9 @@ export function LandingPage() {
                 <img
                   src={`/screenshots/search_${actualTheme}.png`}
                   alt="Smart search in action"
+                  loading="lazy"
+                  width={800}
+                  height={500}
                   className="rounded-xl shadow-2xl border border-[var(--color-border)] transform rotate-1 hover:rotate-0 transition-transform duration-300"
                 />
                 <div className="absolute -inset-4 bg-gradient-to-r from-[var(--color-accent)]/10 to-transparent blur-2xl -z-10" />
@@ -406,6 +409,9 @@ export function LandingPage() {
                 <img
                   src={`/screenshots/projects_${actualTheme}.png`}
                   alt="Organize with projects"
+                  loading="lazy"
+                  width={800}
+                  height={500}
                   className="rounded-xl shadow-2xl border border-[var(--color-border)] transform -rotate-1 hover:rotate-0 transition-transform duration-300"
                 />
                 <div className="absolute -inset-4 bg-gradient-to-l from-[var(--color-accent)]/10 to-transparent blur-2xl -z-10" />
