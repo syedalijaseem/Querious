@@ -37,9 +37,6 @@ htmlcov/
 # Logs
 *.log
 
-# Qdrant local storage
-qdrant_storage/
-
 uploads/
 
 # Frontend build
