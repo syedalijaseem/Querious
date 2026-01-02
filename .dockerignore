@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv
+ENV
+env
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Frontend (not needed in backend container)
+frontend/
+node_modules/
+
+# Tests
+tests/
+e2e/
+pytest.ini
+playwright.config.ts
+
+# Docs
+docs/
+*.md
+!README.md
+
+# Local/Dev files
+.env
+.env.local
+*.log
+.DS_Store
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Playwright
+playwright-report/
+test-results/
