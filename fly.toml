@@ -1,36 +1,23 @@
-# fly.toml - Fly.io configuration for querious-api
+# fly.toml app configuration file generated for querious-api on 2026-01-02T03:09:32Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "querious-api"
-primary_region = "ord"  # Chicago - change to your preferred region
+app = 'querious-api'
+primary_region = 'iad'
 
 [build]
-  dockerfile = "Dockerfile"
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-
-[env]
-  ENVIRONMENT = "production"
-  FRONTEND_URL = "https://querious.dev"
-  COOKIE_SECURE = "true"
-  COOKIE_DOMAIN = ".querious.dev"
-
-# Secrets to set via CLI (don't put actual values here):
-# fly secrets set MONGODB_URI="..."
-# fly secrets set JWT_SECRET_KEY="..."
-# fly secrets set DEEPSEEK_API_KEY="..."
-# fly secrets set OPENAI_API_KEY="..."
-# fly secrets set R2_ACCESS_KEY_ID="..."
-# fly secrets set R2_SECRET_ACCESS_KEY="..."
-# fly secrets set R2_ENDPOINT="..."
-# fly secrets set R2_BUCKET_NAME="..."
-# fly secrets set STORAGE_PROVIDER="r2"
+  processes = ['app']
 
 [[vm]]
-  memory = "512mb"
-  cpu_kind = "shared"
+  memory = '1gb'
+  cpu_kind = 'shared'
   cpus = 1
+  memory_mb = 1024
