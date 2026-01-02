@@ -17,6 +17,8 @@ RUN pip install --no-cache-dir uv && uv sync --frozen --no-dev
 COPY . .
 
 ENV PYTHONUNBUFFERED=1
+ENV PATH="/app/.venv/bin:$PATH"
 
 # Fly.io expects the app to listen on 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
