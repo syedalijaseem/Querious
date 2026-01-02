@@ -74,7 +74,7 @@ def get_recent_history(
     return recent
 
 inngest_client = inngest.Inngest(
-    app_id="rag-app",
+    app_id="querious",
     logger=logging.getLogger("uvicorn"),
     is_production=True,
     serializer=inngest.PydanticSerializer()
