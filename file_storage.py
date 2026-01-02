@@ -25,16 +25,22 @@ from pathlib import Path
 import uuid
 
 
+_s3_client = None
+
 def get_s3_client():
-    """Get a configured S3-compatible client.
+    """Get a configured S3-compatible client (cached).
     
     Uses Cloudflare R2 by default. Set STORAGE_PROVIDER=s3 for AWS S3.
     """
+    global _s3_client
+    if _s3_client is not None:
+        return _s3_client
+
     provider = os.getenv('STORAGE_PROVIDER', 'r2').lower()
     
     if provider == 's3':
         # AWS S3 configuration
-        return boto3.client(
+        _s3_client = boto3.client(
             's3',
             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
@@ -42,12 +48,14 @@ def get_s3_client():
         )
     else:
         # Cloudflare R2 configuration (default)
-        return boto3.client(
+        _s3_client = boto3.client(
             's3',
             aws_access_key_id=os.getenv('R2_ACCESS_KEY_ID'),
             aws_secret_access_key=os.getenv('R2_SECRET_ACCESS_KEY'),
             endpoint_url=os.getenv('R2_ENDPOINT'),
         )
+    
+    return _s3_client
 
 
 def get_bucket_name() -> str:

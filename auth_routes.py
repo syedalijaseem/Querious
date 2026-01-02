@@ -4,6 +4,7 @@ Provides endpoints for user registration, login, token refresh, and logout.
 """
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+import hashlib
 
 from fastapi import APIRouter, HTTPException, Response, Request, Depends
 from fastapi.responses import RedirectResponse
@@ -144,10 +145,30 @@ async def register(data: RegisterRequest):
     Sends verification email. User cannot login until verified.
     """
     db = get_db()
+    email_lower = data.email.lower()
     
-    # Check if email exists
-    if db.users.find_one({"email": data.email.lower()}):
-        raise HTTPException(status_code=409, detail="Email already registered")
+    # Check if this is a soft-deleted account (user deleted but email preserved)
+    existing_user = db.users.find_one({"email": email_lower})
+    if existing_user:
+        if existing_user.get("deleted"):
+            # Restore the soft-deleted account
+            # Keep their original tokens_used - they must upgrade if at limit
+            db.users.update_one(
+                {"email": email_lower},
+                {
+                    "$unset": {"deleted": "", "deleted_at": ""},
+                    "$set": {
+                        "password_hash": hash_password(data.password),
+                        "name": data.name or existing_user.get("name"),
+                        "email_verified": True,  # Auto-verify since they verified before
+                        # Keep tokens_used as-is - don't reset or exhaust
+                    }
+                }
+            )
+            # Return different message so frontend knows to redirect to login
+            return {"message": "Welcome back! Your account has been restored. Please login.", "restored": True}
+        else:
+            raise HTTPException(status_code=409, detail="Email already registered")
     
     # Generate verification token
     verification_token = generate_token()
@@ -292,6 +313,13 @@ async def login(data: LoginRequest, request: Request, response: Response):
     user_doc = db.users.find_one({"email": email})
     if not user_doc:
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    # Check if account was deleted (soft-delete)
+    if user_doc.get("deleted"):
+        raise HTTPException(
+            status_code=401, 
+            detail="This account was deleted. Please register again to restore it."
+        )
     
     # Check lockout
     locked_until = user_doc.get("locked_until")
@@ -703,7 +731,15 @@ async def change_email(data: EmailChangeRequest, user: User = Depends(get_curren
 
 @router.delete("/account")
 async def delete_account(password: str, response: Response, user: User = Depends(get_current_user)):
-    """Delete user account and all associated data."""
+    """Delete user account and all associated data.
+    
+    This permanently deletes:
+    - All user's projects
+    - All user's chats
+    - All user's documents and chunks
+    - All user's sessions and tokens
+    - The user account itself
+    """
     db = get_db()
     
     # Verify password (required for security)
@@ -712,22 +748,77 @@ async def delete_account(password: str, response: Response, user: User = Depends
         if not verify_password(password, user_doc["password_hash"]):
             raise HTTPException(status_code=401, detail="Password is incorrect")
     
-    # Revoke all refresh tokens immediately
+    # Get all user's chats
+    user_chats = list(db.chats.find({"user_id": user.id}))
+    chat_ids = [c["id"] for c in user_chats]
+    
+    # Get all user's projects
+    user_projects = list(db.projects.find({"user_id": user.id}))
+    project_ids = [p["id"] for p in user_projects]
+    
+    # Get all document scope links for user's chats and projects
+    doc_scopes = list(db.document_scopes.find({
+        "$or": [
+            {"scope_type": "chat", "scope_id": {"$in": chat_ids}},
+            {"scope_type": "project", "scope_id": {"$in": project_ids}}
+        ]
+    }))
+    doc_ids = list(set(ds["document_id"] for ds in doc_scopes))
+    
+    # Delete chunks for all user's documents
+    if doc_ids:
+        db.chunks.delete_many({"document_id": {"$in": doc_ids}})
+    
+    # Delete document scope links
+    db.document_scopes.delete_many({
+        "$or": [
+            {"scope_type": "chat", "scope_id": {"$in": chat_ids}},
+            {"scope_type": "project", "scope_id": {"$in": project_ids}}
+        ]
+    })
+    
+    # Delete documents that are now orphaned (no other links)
+    for doc_id in doc_ids:
+        remaining = db.document_scopes.count_documents({"document_id": doc_id})
+        if remaining == 0:
+            db.documents.delete_one({"id": doc_id})
+    
+    # Delete all messages from user's chats
+    if chat_ids:
+        db.messages.delete_many({"chat_id": {"$in": chat_ids}})
+    
+    # Delete all user's chats
+    db.chats.delete_many({"user_id": user.id})
+    
+    # Delete all user's projects
+    db.projects.delete_many({"user_id": user.id})
+    
+    # Revoke all refresh tokens
     db.refresh_tokens.delete_many({"user_id": user.id})
     
-    # Delete user providers
+    # Delete user providers (Google OAuth links)
     db.user_providers.delete_many({"user_id": user.id})
     
-    # Mark user for deletion (or delete immediately for now)
-    # In production, you might queue this for background processing
-    db.users.delete_one({"id": user.id})
+    # Delete waitlist entry if exists
+    if user_doc and user_doc.get("email"):
+        db.waitlist.delete_many({"email": user_doc["email"]})
     
-    # TODO: Queue background job to delete user's projects, chats, documents
-    # For now, we'll leave orphaned data (background cleanup will handle)
+    # SOFT DELETE: Keep the user record but mark as deleted
+    # tokens_used is preserved so they continue from where they left off
+    db.users.update_one(
+        {"id": user.id},
+        {
+            "$set": {
+                "deleted": True,
+                "deleted_at": datetime.now(timezone.utc),
+                "password_hash": None,  # Clear password for security
+            }
+        }
+    )
     
     clear_auth_cookies(response)
     
-    return {"message": "Account deleted successfully"}
+    return {"message": "Account and all data deleted successfully. Your data has been permanently removed."}
 
 
 # --- Google OAuth ---

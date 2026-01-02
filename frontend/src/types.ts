@@ -57,6 +57,19 @@ export interface UploadResponse {
   message?: string;
 }
 
+// Upload limits response from backend
+export interface UploadLimits {
+  current_count: number;
+  max_files: number;
+  current_size: number;
+  max_total_size: number;
+  remaining_count: number;
+  remaining_size: number;
+  // Global limits
+  max_total_docs?: number;
+  user_doc_count?: number;
+}
+
 export interface Message {
   id: string;
   chat_id: string;

@@ -16,7 +16,11 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    name: string
+  ) => Promise<{ restored?: boolean }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   addTokensUsed: (tokens: number) => void;
@@ -62,8 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function register(email: string, password: string, name: string) {
     setError(null);
     try {
-      await api.register({ email, password, name });
-      // Don't auto-login - user needs to verify email
+      const response = await api.register({ email, password, name });
+      // Don't auto-login - user needs to verify email (unless restored)
+      return response;
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Registration failed";

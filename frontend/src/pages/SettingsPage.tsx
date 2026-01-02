@@ -15,7 +15,7 @@ interface SettingsPageProps {
 export function SettingsPage({ onClose }: SettingsPageProps) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<
-    "profile" | "appearance" | "security" | "sessions"
+    "profile" | "appearance" | "security" | "sessions" | "danger"
   >("profile");
 
   return (
@@ -55,13 +55,18 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
             { id: "appearance", label: "Appearance" },
             // { id: "security", label: "Security" }, // Coming soon
             { id: "sessions", label: "Sessions" },
+            { id: "danger", label: "Privacy" },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeTab === tab.id
-                  ? "bg-[#e6f7f5] dark:bg-[#0f2e2b] text-[#0f766e] dark:text-[#2dd4bf] shadow-sm"
+                  ? (tab as { danger?: boolean }).danger
+                    ? "bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 shadow-sm"
+                    : "bg-[#e6f7f5] dark:bg-[#0f2e2b] text-[#0f766e] dark:text-[#2dd4bf] shadow-sm"
+                  : (tab as { danger?: boolean }).danger
+                  ? "text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10"
                   : "text-zinc-600 dark:text-[#737373] hover:text-[#1a1a1a] dark:hover:text-white hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
               }`}
             >
@@ -76,6 +81,7 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
           {activeTab === "appearance" && <AppearanceTab />}
           {/* {activeTab === "security" && <SecurityTab onLogout={logout} />} */}
           {activeTab === "sessions" && <SessionsTab />}
+          {activeTab === "danger" && <DangerTab />}
         </div>
       </div>
     </div>
@@ -388,6 +394,156 @@ function SessionsTab() {
             )}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Danger Tab ---
+function DangerTab() {
+  const { logout } = useAuth();
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmText, setConfirmText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDeleteAccount(e: FormEvent) {
+    e.preventDefault();
+
+    if (confirmText !== "DELETE") {
+      setError("Please type DELETE to confirm");
+      return;
+    }
+
+    if (!password) {
+      setError("Please enter your password");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await api.deleteAccount(password);
+      logout();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete account");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div>
+      <h2 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-2">
+        Danger Zone
+      </h2>
+      <p className="text-sm text-[#a3a3a3] dark:text-[#a0a0a0] mb-6">
+        Irreversible actions that permanently affect your account
+      </p>
+
+      {/* Warning Card */}
+      <div className="p-6 rounded-xl border-2 border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10">
+        <div className="flex items-start gap-4">
+          <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30">
+            <svg
+              className="w-6 h-6 text-red-600 dark:text-red-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-red-700 dark:text-red-300 mb-1">
+              Delete Account
+            </h3>
+            <p className="text-sm text-red-600/80 dark:text-red-400/80 mb-4">
+              Permanently delete your account and all associated data including:
+            </p>
+            <ul className="text-sm text-red-600/80 dark:text-red-400/80 space-y-1 mb-4">
+              <li>• All your projects</li>
+              <li>• All your chats and messages</li>
+              <li>• All uploaded documents</li>
+              <li>• Your profile and settings</li>
+            </ul>
+            <p className="text-sm font-medium text-red-700 dark:text-red-300">
+              This action cannot be undone.
+            </p>
+          </div>
+        </div>
+
+        {!showConfirm ? (
+          <button
+            onClick={() => setShowConfirm(true)}
+            className="mt-6 px-4 py-2 rounded-lg border-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 font-medium hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+          >
+            I want to delete my account
+          </button>
+        ) : (
+          <form onSubmit={handleDeleteAccount} className="mt-6 space-y-4">
+            <div className="p-4 rounded-lg bg-red-100 dark:bg-red-900/30">
+              <label className="block text-sm font-medium text-red-700 dark:text-red-300 mb-2">
+                Type "DELETE" to confirm
+              </label>
+              <input
+                type="text"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="w-full px-3 py-2 rounded-lg border border-red-300 dark:border-red-700 bg-white dark:bg-[#1a1a1a] text-[#1a1a1a] dark:text-[#ececec] placeholder-red-300 dark:placeholder-red-700"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-red-700 dark:text-red-300 mb-2">
+                Enter your password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Your password"
+                className="w-full px-3 py-2 rounded-lg border border-red-300 dark:border-red-700 bg-white dark:bg-[#1a1a1a] text-[#1a1a1a] dark:text-[#ececec]"
+              />
+            </div>
+
+            {error && (
+              <div className="p-3 rounded-lg bg-red-200 dark:bg-red-900/50 text-red-700 dark:text-red-300 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConfirm(false);
+                  setPassword("");
+                  setConfirmText("");
+                  setError(null);
+                }}
+                className="flex-1 px-4 py-2 rounded-lg border border-[#e8e8e8] dark:border-[#3a3a3a] text-[#1a1a1a] dark:text-[#ececec] font-medium hover:bg-neutral-100 dark:hover:bg-[#2a2a2a] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading || confirmText !== "DELETE" || !password}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? "Deleting..." : "Delete My Account"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

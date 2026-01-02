@@ -34,6 +34,8 @@ export function useCreateProject() {
       queryClient.setQueryData<Project[]>(projectKeys.all, (old) =>
         old ? [newProject, ...old] : [newProject]
       );
+      // Invalidate project count for limits
+      queryClient.invalidateQueries({ queryKey: ["projects-count"] });
     },
   });
 }
@@ -71,7 +73,10 @@ export function useDeleteProject() {
     },
     onSettled: () => {
       // Refetch to ensure consistency
+      // Refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey: projectKeys.all });
+      // Invalidate project count for limits
+      queryClient.invalidateQueries({ queryKey: ["projects-count"] });
     },
   });
 }

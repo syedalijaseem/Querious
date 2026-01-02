@@ -3,13 +3,20 @@
  */
 import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Trash2 } from "lucide-react";
 import { useProject } from "../hooks/useProjects";
-import { useProjectChats, useCreateChat } from "../hooks/useChats";
+import {
+  useProjectChats,
+  useCreateChat,
+  useDeleteChat,
+} from "../hooks/useChats";
 import { useUploadDocument, useDocuments } from "../hooks/useDocuments";
 import { useUploadLimits, useChatLimit } from "../hooks/useUploadLimits";
 import { useAuth } from "../context/AuthContext";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { LimitModal } from "../components/LimitModal";
+import { ConfirmationModal } from "../components/ConfirmationModal";
+import { useToast } from "../components/Toast";
 import { formatRelativeTime } from "../utils/formatTime";
 
 export function ProjectDetailPage() {
@@ -26,13 +33,8 @@ export function ProjectDetailPage() {
 
   const chatLimit = useChatLimit();
 
-  const { data: project, isLoading: projectLoading } = useProject(id || "");
-  const { data: chats = [], isLoading: chatsLoading } = useProjectChats(
-    id || null
-  );
-
-  const createChat = useCreateChat();
-  const uploadDocument = useUploadDocument();
+  const [chatToDelete, setChatToDelete] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Check upload limits
   const uploadLimits = useUploadLimits("project", id || null);
@@ -43,12 +45,41 @@ export function ProjectDetailPage() {
     id || null
   );
 
+  const { data: project, isLoading: projectLoading } = useProject(id || "");
+  const { data: chats = [], isLoading: chatsLoading } = useProjectChats(
+    id || null
+  );
+
+  const createChat = useCreateChat();
+  const deleteChat = useDeleteChat();
+  const uploadDocument = useUploadDocument();
+
+  // Toast notifications
+  const { showToast } = useToast();
+
+  function handleDeleteChatClick(chatId: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setChatToDelete(chatId);
+    setShowDeleteConfirm(true);
+  }
+
+  function confirmDeleteChat() {
+    if (chatToDelete) {
+      deleteChat.mutate(chatToDelete);
+      setChatToDelete(null);
+      setShowDeleteConfirm(false);
+    }
+  }
+
   async function handleStartChat() {
     if (!id || !replyInput.trim()) return;
 
     // Check if project has documents
     if (documents.length === 0) {
-      alert("Please upload files to this project before starting a new chat.");
+      showToast(
+        "Please upload files to this project before starting a new chat.",
+        "warning"
+      );
       return;
     }
 
@@ -86,12 +117,71 @@ export function ProjectDetailPage() {
     const files = e.target.files;
     if (!files || files.length === 0 || !id) return;
 
-    // Convert FileList to array for parallel processing
-    const fileArray = Array.from(files);
+    // Convert FileList to array
+    const allFiles = Array.from(files);
+
+    // Step 1: Pre-validation (Type & Size)
+    const validFiles: File[] = [];
+    let invalidCount = 0;
+
+    allFiles.forEach((file) => {
+      // Check type
+      if (!file.name.toLowerCase().endsWith(".pdf")) {
+        showToast(
+          `Skipped "${file.name}": Only PDF files are supported.`,
+          "warning"
+        );
+        invalidCount++;
+        return;
+      }
+
+      // Check size (50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        showToast(
+          `Skipped "${file.name}": File size exceeds 50MB limit.`,
+          "warning"
+        );
+        invalidCount++;
+        return;
+      }
+
+      validFiles.push(file);
+    });
+
+    if (validFiles.length === 0) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    // Step 2: Quota Check & Slicing
+    const { allowed, blocked } = uploadLimits.checkUploadability(
+      validFiles.length
+    );
+
+    if (allowed === 0) {
+      setLimitType("documents");
+      setShowLimitModal(true);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    // Slice to allowed quota
+    const filesToUpload = validFiles.slice(0, allowed);
+
+    // Notify about slicing if needed
+    if (blocked > 0) {
+      showToast(
+        `Uploaded ${allowed} file${
+          allowed !== 1 ? "s" : ""
+        }. ${blocked} skipped (document limit reached).`,
+        "warning",
+        5000
+      );
+    }
 
     try {
-      // Upload all files in parallel
-      const uploadPromises = fileArray.map((file) =>
+      // Upload allowed files in parallel
+      const uploadPromises = filesToUpload.map((file) =>
         uploadDocument
           .mutateAsync({
             scopeType: "project",
@@ -122,8 +212,10 @@ export function ProjectDetailPage() {
           setLimitType("documents");
           setShowLimitModal(true);
         } else {
-          const errorNames = errors.map((e) => e.filename).join(", ");
-          alert(`Some uploads failed: ${errorNames}\n${errors[0].message}`);
+          showToast(
+            `Some uploads failed: ${errors.map((e) => e.filename).join(", ")}`,
+            "warning"
+          );
         }
       }
     } catch (error) {
@@ -136,7 +228,11 @@ export function ProjectDetailPage() {
         setLimitType("documents");
         setShowLimitModal(true);
       } else {
-        alert("Upload failed");
+        showToast("Upload failed. Please try again.", "warning");
+      }
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
       }
     }
   }
@@ -292,13 +388,29 @@ export function ProjectDetailPage() {
                 <div
                   key={chat.id}
                   onClick={() => navigate(`/chat/${chat.id}`)}
-                  className="p-4 bg-[#f8f8f8] dark:bg-[#242424] hover:bg-zinc-50 dark:hover:bg-neutral-800 border border-[#e8e8e8] dark:border-[#3a3a3a] rounded-xl cursor-pointer transition-colors"
+                  className="group relative p-4 bg-[#f8f8f8] dark:bg-[#242424] hover:bg-zinc-50 dark:hover:bg-neutral-800 border border-[#e8e8e8] dark:border-[#3a3a3a] rounded-xl cursor-pointer transition-colors"
                 >
-                  <h3 className="font-medium">{chat.title}</h3>
+                  <h3 className="font-medium pr-8">{chat.title}</h3>
                   <p className="text-sm text-[#a3a3a3] mt-1">
                     {formatRelativeTime(chat.updated_at || chat.created_at) ||
                       "No messages yet"}
                   </p>
+
+                  {/* Delete button or Spinner */}
+                  {deleteChat.isPending && chatToDelete === chat.id ? (
+                    <div className="absolute top-4 right-4 text-[#a3a3a3] animate-pulse">
+                      ...
+                    </div>
+                  ) : (
+                    <button
+                      onClick={(e) => handleDeleteChatClick(chat.id, e)}
+                      disabled={deleteChat.isPending}
+                      className="absolute top-3 right-3 p-2 opacity-0 group-hover:opacity-100 hover:bg-[#fdeaea] dark:hover:bg-[#2e1616] text-[#737373] dark:text-[#a0a0a0] hover:text-[#dc2626] dark:hover:text-[#f87171] rounded-lg transition-all"
+                      title="Delete chat"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -379,6 +491,19 @@ export function ProjectDetailPage() {
         onClose={() => setShowLimitModal(false)}
         limitType={limitType}
         currentPlan={user?.plan || "free"}
+      />
+      {/* Delete Chat Confirmation */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setChatToDelete(null);
+        }}
+        onConfirm={confirmDeleteChat}
+        title="Delete Chat?"
+        message="This will permanently delete this chat and its message history. This action cannot be undone."
+        confirmText="Delete"
+        variant="destructive"
       />
     </div>
   );

@@ -69,9 +69,12 @@ export function useUploadDocument() {
           queryKey: chatKeys.documents(scopeId),
         });
       }
-      // Also invalidate general document list for this scope
       queryClient.invalidateQueries({
         queryKey: documentKeys.byScope(scopeType, scopeId),
+      });
+      // Invalidate limits to refresh UI immediately
+      queryClient.invalidateQueries({
+        queryKey: ["upload-limits", scopeType, scopeId],
       });
     },
   });

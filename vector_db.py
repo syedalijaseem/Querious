@@ -4,6 +4,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Global cached client
+_mongo_client = None
+
 
 class MongoDBStorage:
     """Vector storage using MongoDB Atlas with vector search capabilities."""
@@ -16,7 +19,12 @@ class MongoDBStorage:
         if db_name is None:
             db_name = os.getenv("MONGODB_DATABASE", "docurag")
         
-        self.client = MongoClient(uri)
+        # Use cached client if available
+        global _mongo_client
+        if _mongo_client is None:
+            _mongo_client = MongoClient(uri)
+            
+        self.client = _mongo_client
         self.db = self.client[db_name]
         self.collection = self.db[collection_name]
         

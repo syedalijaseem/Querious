@@ -21,6 +21,7 @@ import { LoadingSpinner } from "../components/LoadingSpinner";
 import { ModelSelector } from "../components/ModelSelector";
 import { TokenLimitModal } from "../components/TokenLimitModal";
 import { LimitModal } from "../components/LimitModal";
+import { useToast } from "../components/Toast";
 import {
   QualityPresetSelector,
   getChunkCount,
@@ -55,6 +56,9 @@ export function ChatViewPage() {
 
   // Check upload limits
   const uploadLimits = useUploadLimits("chat", id || null);
+
+  // Toast notifications
+  const { showToast } = useToast();
 
   // Streaming query hook
   const streaming = useStreamingQuery(id || "");
@@ -124,7 +128,7 @@ export function ChatViewPage() {
       );
     } catch (error: unknown) {
       console.error("Query failed:", error);
-      alert("Failed to send message");
+      showToast("Failed to send message. Please try again.", "warning");
     } finally {
       setSending(false);
     }
@@ -201,12 +205,70 @@ export function ChatViewPage() {
     const files = e.target.files;
     if (!files || files.length === 0 || !id) return;
 
-    // Convert FileList to array for parallel processing
-    const fileArray = Array.from(files);
+    // Convert FileList to array
+    const allFiles = Array.from(files);
+
+    // Step 1: Pre-validation (Type & Size)
+    const validFiles: File[] = [];
+    let invalidCount = 0;
+
+    allFiles.forEach((file) => {
+      // Check type
+      if (!file.name.toLowerCase().endsWith(".pdf")) {
+        showToast(
+          `Skipped "${file.name}": Only PDF files are supported.`,
+          "warning"
+        );
+        invalidCount++;
+        return;
+      }
+
+      // Check size (50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        showToast(
+          `Skipped "${file.name}": File size exceeds 50MB limit.`,
+          "warning"
+        );
+        invalidCount++;
+        return;
+      }
+
+      validFiles.push(file);
+    });
+
+    if (validFiles.length === 0) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    // Step 2: Quota Check & Slicing
+    const { allowed, blocked } = uploadLimits.checkUploadability(
+      validFiles.length
+    );
+
+    if (allowed === 0) {
+      setShowDocumentLimitModal(true);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    // Slice to allowed quota
+    const filesToUpload = validFiles.slice(0, allowed);
+
+    // Notify about slicing if needed
+    if (blocked > 0) {
+      showToast(
+        `Uploaded ${allowed} file${
+          allowed !== 1 ? "s" : ""
+        }. ${blocked} skipped (document limit reached).`,
+        "warning",
+        5000
+      );
+    }
 
     try {
-      // Upload all files in parallel
-      const uploadPromises = fileArray.map((file) =>
+      // Upload allowed files in parallel
+      const uploadPromises = filesToUpload.map((file) =>
         uploadDocument
           .mutateAsync({
             scopeType: "chat",
@@ -247,8 +309,10 @@ export function ChatViewPage() {
         if (hasLimitError) {
           setShowDocumentLimitModal(true);
         } else {
-          const errorNames = errors.map((e) => e.filename).join(", ");
-          alert(`Some uploads failed: ${errorNames}\n${errors[0].message}`);
+          showToast(
+            `Some uploads failed: ${errors.map((e) => e.filename).join(", ")}`,
+            "warning"
+          );
         }
       }
     } catch (error) {
@@ -260,7 +324,7 @@ export function ChatViewPage() {
       if (errorMessage.includes("limit_reached")) {
         setShowDocumentLimitModal(true);
       } else {
-        alert("Upload failed");
+        showToast("Upload failed. Please try again.", "warning");
       }
     } finally {
       if (fileInputRef.current) {
@@ -426,11 +490,16 @@ export function ChatViewPage() {
               {/* Attach Button */}
               <button
                 onClick={handleAttachClick}
-                disabled={uploadDocument.isPending}
+                disabled={
+                  uploadDocument.isPending ||
+                  (uploadLimits.isLoading && !uploadLimits.canUpload)
+                }
                 className="p-2 rounded-full text-[#737373] dark:text-[#a0a0a0] hover:text-[#1a1a1a] dark:hover:text-white hover:bg-[#f0f0f0] dark:hover:bg-[#3a3a3a] transition-colors disabled:opacity-50 flex-shrink-0"
-                title="Attach PDF"
+                title={
+                  uploadLimits.isLoading ? "Checking limits..." : "Attach PDF"
+                }
               >
-                {uploadDocument.isPending ? (
+                {uploadDocument.isPending || uploadLimits.isLoading ? (
                   <span className="text-lg">⏳</span>
                 ) : (
                   <svg

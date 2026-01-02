@@ -9,6 +9,7 @@ import {
   Route,
   Navigate,
   useNavigate,
+  useSearchParams,
 } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -50,6 +51,17 @@ const RegisterPage = lazy(() =>
 const NotFoundPage = lazy(() =>
   import("./pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage }))
 );
+const PrivacyPage = lazy(() =>
+  import("./pages/PrivacyPage").then((m) => ({ default: m.PrivacyPage }))
+);
+const TermsPage = lazy(() =>
+  import("./pages/TermsPage").then((m) => ({ default: m.TermsPage }))
+);
+const VerifyEmailPage = lazy(() =>
+  import("./pages/VerifyEmailPage").then((m) => ({
+    default: m.VerifyEmailPage,
+  }))
+);
 
 // Query client for TanStack Query
 const queryClient = new QueryClient({
@@ -67,6 +79,39 @@ function PageLoader() {
     <div className="flex items-center justify-center min-h-screen bg-[var(--color-bg)]">
       <LoadingSpinner size="lg" />
     </div>
+  );
+}
+
+// Wrapper for email verification that reads URL params
+function VerifyEmailWrapper() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const token = searchParams.get("token");
+
+  if (!token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-100 dark:bg-[#242424]">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">
+            Invalid verification link. No token provided.
+          </p>
+          <button
+            onClick={() => navigate("/login")}
+            className="px-6 py-3 bg-neutral-800 text-white rounded-xl"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <VerifyEmailPage
+      token={token}
+      onSuccess={() => navigate("/login")}
+      onError={() => navigate("/login")}
+    />
   );
 }
 
@@ -209,6 +254,11 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+        {/* Public legal pages */}
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/verify-email" element={<VerifyEmailWrapper />} />
 
         {/* 404 Fallback */}
         <Route path="*" element={<NotFoundPage />} />

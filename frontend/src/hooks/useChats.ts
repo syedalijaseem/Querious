@@ -74,6 +74,8 @@ export function useCreateChat() {
           old ? [newChat, ...old] : [newChat]
         );
       }
+      // Invalidate chat count for limits
+      queryClient.invalidateQueries({ queryKey: ["chats-count"] });
     },
   });
 }
@@ -112,24 +114,28 @@ export function useDeleteChat() {
     // Optimistic update - remove immediately from UI
     onMutate: async (id) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: chatKeys.standalone });
+      await queryClient.cancelQueries({ queryKey: chatKeys.all });
 
       // Snapshot previous value
-      const previousChats = queryClient.getQueryData<Chat[]>(
-        chatKeys.standalone
-      );
+      const previousChats = queryClient.getQueriesData<Chat[]>({
+        queryKey: chatKeys.all,
+      });
 
-      // Optimistically remove from list
-      queryClient.setQueryData<Chat[]>(chatKeys.standalone, (old) =>
-        old?.filter((c) => c.id !== id)
-      );
+      // Optimistically remove from ALL lists (standalone and by project)
+      // We target any query starting with ['chats'] that returns an array
+      queryClient.setQueriesData<Chat[]>({ queryKey: chatKeys.all }, (old) => {
+        if (!Array.isArray(old)) return old; // Skip non-array caches (like details)
+        return old.filter((c) => c.id !== id);
+      });
 
       return { previousChats };
     },
     onError: (_err, _id, context) => {
       // Rollback on error
       if (context?.previousChats) {
-        queryClient.setQueryData(chatKeys.standalone, context.previousChats);
+        context.previousChats.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
       }
     },
     onSuccess: (_, id) => {
@@ -137,7 +143,10 @@ export function useDeleteChat() {
     },
     onSettled: () => {
       // Refetch to ensure consistency
+      // Refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey: chatKeys.all });
+      // Invalidate chat count for limits
+      queryClient.invalidateQueries({ queryKey: ["chats-count"] });
     },
   });
 }

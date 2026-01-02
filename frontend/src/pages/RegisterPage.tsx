@@ -19,6 +19,7 @@ export function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [restored, setRestored] = useState(false);
 
   function validatePassword(): string | null {
     if (password.length < 8) {
@@ -52,7 +53,10 @@ export function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
     setError(null);
 
     try {
-      await register(email, password, name);
+      const response = await register(email, password, name);
+      if (response.restored) {
+        setRestored(true);
+      }
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
@@ -81,14 +85,23 @@ export function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
             </svg>
           </div>
           <h2 className="text-2xl font-semibold text-[#1a1a1a] dark:text-[#ececec] mb-2">
-            Check your email
+            {restored ? "Welcome back!" : "Check your email"}
           </h2>
           <p className="text-[#a3a3a3] dark:text-[#a0a0a0] mb-8">
-            We've sent a verification link to{" "}
-            <span className="font-medium text-[#1a1a1a] dark:text-[#ececec]">
-              {email}
-            </span>
-            . Please verify your account to continue.
+            {restored ? (
+              <>
+                Your account has been restored. Please log in to continue where
+                you left off.
+              </>
+            ) : (
+              <>
+                We've sent a verification link to{" "}
+                <span className="font-medium text-[#1a1a1a] dark:text-[#ececec]">
+                  {email}
+                </span>
+                . Please verify your account to continue.
+              </>
+            )}
           </p>
           <button
             type="button"

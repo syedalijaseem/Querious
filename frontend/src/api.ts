@@ -207,14 +207,29 @@ export async function uploadDocument(
     {
       method: "POST",
       body: formData,
+      credentials: "include", // Important: send auth cookies
     }
   );
 
   if (!response.ok) {
-    const error = await response
+    const errorBody = await response
       .json()
       .catch(() => ({ detail: "Upload failed" }));
-    throw new Error(error.detail);
+
+    // Handle detail being an object (limit reached) or string
+    const detailMsg =
+      typeof errorBody.detail === "object"
+        ? JSON.stringify(errorBody.detail)
+        : errorBody.detail || `HTTP ${response.status}`;
+
+    // Create error with status property
+    const error = new Error(detailMsg) as Error & {
+      status: number;
+      body: unknown;
+    };
+    error.status = response.status;
+    error.body = errorBody;
+    throw error;
   }
 
   return response.json();
@@ -356,7 +371,7 @@ import type {
 
 export async function register(
   data: RegisterRequest
-): Promise<{ message: string }> {
+): Promise<{ message: string; restored?: boolean }> {
   return fetchApi("/auth/register", {
     method: "POST",
     body: JSON.stringify(data),

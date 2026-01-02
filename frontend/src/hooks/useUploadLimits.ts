@@ -8,10 +8,11 @@ import * as api from "../api";
 import type { ScopeType } from "../types";
 
 // Plan limits (must match backend PLAN_LIMITS in api_routes.py)
+// Plan limits (must match backend PLAN_LIMITS in api_routes.py)
 const PLAN_LIMITS = {
-  free: { docs_per_scope: 1, token_limit: 10000 },
-  pro: { docs_per_scope: 5, token_limit: 500000 },
-  premium: { docs_per_scope: 10, token_limit: 2000000 },
+  free: { docs_per_scope: 3, token_limit: 10000, documents: 3 },
+  pro: { docs_per_scope: 5, token_limit: 500000, documents: 30 },
+  premium: { docs_per_scope: 10, token_limit: 2000000, documents: 999999 }, // 999999 = unlimited
 } as const;
 
 export function useUploadLimits(scopeType: ScopeType, scopeId: string | null) {
@@ -27,16 +28,84 @@ export function useUploadLimits(scopeType: ScopeType, scopeId: string | null) {
     staleTime: 10000, // Cache for 10 seconds
   });
 
-  const maxDocs =
-    PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS]?.docs_per_scope || 1;
-  const currentCount = usage?.current_count || 0;
+  // Calculate limits (Scope & Global)
+  const maxDocsScope =
+    PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS]?.docs_per_scope || 3;
+  const currentDocsScope = usage?.current_count || 0;
+
+  const maxDocsGlobal =
+    usage?.max_total_docs ??
+    PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS]?.documents ??
+    3;
+  const currentDocsGlobal = usage?.user_doc_count ?? 0;
+
+  // Use a pessimistic approach during loading: assume limit reached to prevent race conditions
+  const isLoading = !usage && !!scopeId;
+  const canUpload =
+    !isLoading &&
+    currentDocsScope < maxDocsScope &&
+    currentDocsGlobal < maxDocsGlobal;
+
+  /**
+   * Helper to check how many files can be uploaded from a batch
+   */
+  function checkUploadability(fileCount: number) {
+    if (isLoading) {
+      return {
+        allowed: 0,
+        blocked: fileCount,
+        isLimitReached: false,
+        isLoading: true,
+      };
+    }
+
+    // Calculate effective remaining (bounded by both scope and global limits)
+    const remainingScope = Math.max(0, maxDocsScope - currentDocsScope);
+    const remainingGlobal = Math.max(0, maxDocsGlobal - currentDocsGlobal);
+    const remaining = Math.min(remainingScope, remainingGlobal);
+
+    if (remaining === 0) {
+      return {
+        allowed: 0,
+        blocked: fileCount,
+        isLimitReached: true,
+        isLoading: false,
+      };
+    }
+
+    if (fileCount <= remaining) {
+      return {
+        allowed: fileCount,
+        blocked: 0,
+        isLimitReached: false,
+        isLoading: false,
+      };
+    }
+
+    // Partial allowance
+    return {
+      allowed: remaining,
+      blocked: fileCount - remaining,
+      isLimitReached: true, // Will reach limit after upload
+      isLoading: false,
+    };
+  }
 
   return {
-    canUpload: currentCount < maxDocs,
-    currentCount,
-    maxDocs,
-    remaining: maxDocs - currentCount,
-    isLoading: !scopeId || !usage,
+    canUpload,
+    currentCount: currentDocsScope,
+    maxDocs: maxDocsScope,
+    remaining: Math.max(
+      0,
+      Math.min(
+        maxDocsScope - currentDocsScope,
+        maxDocsGlobal - currentDocsGlobal
+      )
+    ),
+    isLoading,
+    checkUploadability,
+    // Debug info
+    globalUsage: { current: currentDocsGlobal, max: maxDocsGlobal },
   };
 }
 

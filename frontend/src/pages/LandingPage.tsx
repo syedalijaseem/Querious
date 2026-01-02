@@ -644,6 +644,18 @@ export function LandingPage() {
                   Pricing
                 </button>
                 <a
+                  href="/privacy"
+                  className="hover:text-[var(--color-text-primary)] transition-colors"
+                >
+                  Privacy
+                </a>
+                <a
+                  href="/terms"
+                  className="hover:text-[var(--color-text-primary)] transition-colors"
+                >
+                  Terms
+                </a>
+                <a
                   href="mailto:support@querious.dev"
                   className="hover:text-[var(--color-text-primary)] transition-colors"
                 >

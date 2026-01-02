@@ -138,7 +138,8 @@ export function ProjectsPage() {
             </h1>
             <button
               onClick={handleNewProjectClick}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#0d9488] hover:bg-[#0f766e] dark:bg-[#2dd4bf] dark:hover:bg-[#5eead4] text-white dark:text-[#0f2e2b] rounded-xl font-medium transition-all"
+              disabled={deleteProject.isPending}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#0d9488] hover:bg-[#0f766e] dark:bg-[#2dd4bf] dark:hover:bg-[#5eead4] text-white dark:text-[#0f2e2b] rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-wait"
             >
               <Plus className="w-5 h-5" />
               <span>New Project</span>
@@ -201,14 +202,23 @@ export function ProjectsPage() {
                     </p>
                   </div>
 
-                  {/* Delete button */}
-                  <button
-                    onClick={(e) => handleDeleteClick(project.id, e)}
-                    className="absolute top-3 right-3 p-2 opacity-0 group-hover:opacity-100 hover:bg-[#fdeaea] dark:hover:bg-[#2e1616] text-[#737373] dark:text-[#a0a0a0] hover:text-[#dc2626] dark:hover:text-[#f87171] rounded-lg transition-all"
-                    title="Delete project"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {/* Delete button or Spinner */}
+                  {deleteProject.isPending && projectToDelete === project.id ? (
+                    <div className="absolute top-3 right-3 p-2">
+                      <span className="text-xs text-[#a3a3a3] animate-pulse">
+                        Deleting...
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={(e) => handleDeleteClick(project.id, e)}
+                      disabled={deleteProject.isPending}
+                      className="absolute top-3 right-3 p-2 opacity-0 group-hover:opacity-100 hover:bg-[#fdeaea] dark:hover:bg-[#2e1616] text-[#737373] dark:text-[#a0a0a0] hover:text-[#dc2626] dark:hover:text-[#f87171] rounded-lg transition-all"
+                      title="Delete project"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

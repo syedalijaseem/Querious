@@ -37,20 +37,26 @@ from auth_routes import get_current_user
 # Router for API endpoints
 router = APIRouter(prefix="/api", tags=["api"])
 
-# MongoDB client
+# MongoDB client (cached)
+_db_client = None
+
 def get_db():
+    global _db_client
     uri = os.getenv("MONGODB_URI")
     if not uri:
         raise HTTPException(status_code=500, detail="MONGODB_URI not configured")
-    client = MongoClient(uri)
-    db_name = os.getenv("MONGODB_DATABASE", "docurag")  # Use env variable, default to docurag
-    return client[db_name]
+    
+    if _db_client is None:
+        _db_client = MongoClient(uri)
+        
+    db_name = os.getenv("MONGODB_DATABASE", "docurag")
+    return _db_client[db_name]
 
 
 # --- Plan Limits ---
 # Resource limits per plan
 PLAN_LIMITS = {
-    "free": {"projects": 1, "chats": 3, "documents": 3, "docs_per_scope": 1, "token_limit": 10000},
+    "free": {"projects": 1, "chats": 3, "documents": 3, "docs_per_scope": 3, "token_limit": 10000},
     "pro": {"projects": 10, "chats": None, "documents": 30, "docs_per_scope": 5, "token_limit": 500000},  # None = unlimited
     "premium": {"projects": None, "chats": None, "documents": None, "docs_per_scope": 10, "token_limit": 2000000},
 }
@@ -520,6 +526,10 @@ def get_upload_limits(scope_type: str, scope_id: str, user: User = Depends(get_c
     current_count = scope_docs[0]["count"] if scope_docs else 0
     current_size = scope_docs[0]["total_size"] if scope_docs else 0
     
+    # Get global user limits
+    max_total_docs = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])["documents"]
+    user_doc_count = getattr(user, 'active_documents_count', 0) or 0
+    
     return {
         "max_files": max_docs_per_scope,
         "max_file_size": MAX_FILE_SIZE,
@@ -527,7 +537,11 @@ def get_upload_limits(scope_type: str, scope_id: str, user: User = Depends(get_c
         "current_count": current_count,
         "current_size": current_size,
         "remaining_count": max_docs_per_scope - current_count,
-        "remaining_size": MAX_TOTAL_SIZE_PER_SCOPE - current_size
+        "remaining_size": MAX_TOTAL_SIZE_PER_SCOPE - current_size,
+        
+        # Global limits
+        "max_total_docs": max_total_docs,
+        "user_doc_count": user_doc_count
     }
 
 
@@ -568,11 +582,43 @@ async def upload_document(
     # Check overall document limit (active_documents_count)
     max_total_docs = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])["documents"]
     current_active = getattr(user, 'active_documents_count', 0) or 0
+    
     if max_total_docs is not None and current_active >= max_total_docs:
-        raise HTTPException(
-            status_code=403,
-            detail={"error": "limit_reached", "resource": "documents", "limit": max_total_docs}
-        )
+        # Self-healing: Double check actual count in DB to fix potential drift
+        # Find all scopes owned by user
+        user_projects = list(db.projects.find({"user_id": user.id}, {"id": 1}))
+        user_chats = list(db.chats.find({"user_id": user.id}, {"id": 1}))
+        
+        scope_filters = []
+        if user_projects:
+            scope_filters.append({"scope_type": "project", "scope_id": {"$in": [p["id"] for p in user_projects]}})
+        if user_chats:
+            scope_filters.append({"scope_type": "chat", "scope_id": {"$in": [c["id"] for c in user_chats]}})
+            
+        actual_count = 0
+        if scope_filters:
+            pipeline = [
+                {"$match": {"$or": scope_filters}},
+                {"$group": {"_id": "$document_id"}},
+                {"$count": "total"}
+            ]
+            result = list(db.document_scopes.aggregate(pipeline))
+            actual_count = result[0]["total"] if result else 0
+            
+        # Update user count if different
+        if actual_count != current_active:
+            db.users.update_one(
+                {"id": user.id},
+                {"$set": {"active_documents_count": actual_count}}
+            )
+            current_active = actual_count
+            
+        # Check limit again with verified count
+        if current_active >= max_total_docs:
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "limit_reached", "resource": "documents", "limit": max_total_docs}
+            )
     
     # Check scope limits (count and total size)
     scope_docs = list(db.document_scopes.aggregate([
@@ -695,8 +741,14 @@ async def upload_document(
 
 # --- Inngest Event Endpoints ---
 
+# Global Inngest client
+_inngest_client = None
+
 def get_inngest_client():
-    return inngest.Inngest(app_id="rag-app", is_production=False)
+    global _inngest_client
+    if _inngest_client is None:
+        _inngest_client = inngest.Inngest(app_id="rag-app", is_production=False)
+    return _inngest_client
 
 
 class IngestEventRequest(BaseModel):
