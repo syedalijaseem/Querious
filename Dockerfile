@@ -19,6 +19,6 @@ COPY . .
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Fly.io expects the app to listen on 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Fly.io expects the app to listen on 8080
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
 
