@@ -18,7 +18,6 @@ env/
 !frontend/.env.example
 
 # uv lock and build artifacts
-uv.lock
 .uv/
 
 # IDE settings
