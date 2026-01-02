@@ -185,6 +185,9 @@ export interface UploadLimits {
   current_size: number;
   remaining_count: number;
   remaining_size: number;
+  // Global limits
+  max_total_docs?: number;
+  user_doc_count?: number;
 }
 
 export async function getUploadLimits(
