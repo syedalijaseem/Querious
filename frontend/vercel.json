@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://querious-api.fly.dev/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
