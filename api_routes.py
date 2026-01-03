@@ -747,7 +747,7 @@ _inngest_client = None
 def get_inngest_client():
     global _inngest_client
     if _inngest_client is None:
-        _inngest_client = inngest.Inngest(app_id="querious", is_production=True)
+        _inngest_client = inngest.Inngest(app_id="querious", is_production=False)
     return _inngest_client
 
 
