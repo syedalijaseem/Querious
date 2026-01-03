@@ -90,7 +90,7 @@ npx inngest-cli@latest dev -u http://127.0.0.1:8000/api/inngest
 | `JWT_SECRET_KEY`   | Secret for JWT tokens (generate with `openssl rand -base64 32`) |
 | `OPENAI_API_KEY`   | For embeddings                                                  |
 | `DEEPSEEK_API_KEY` | For LLM responses                                               |
-| `R2_*`             | Cloudflare R2 storage credentials                               |
+| `R2_*` or `AWS_*`  | Cloudflare R2 or AWS S3 storage credentials                     |
 
 ### Ports
 
@@ -184,32 +184,6 @@ cp frontend/.env.example frontend/.env.local
 | Free    | 10,000        | 3         | 1         | 3         |
 | Pro     | 2,000,000/mo  | Unlimited | 10        | 30        |
 | Premium | 15,000,000/mo | Unlimited | Unlimited | Unlimited |
-
-## Deployment
-
-### Required Environment Variables
-
-> **⚠️ CRITICAL: JWT_SECRET_KEY must be set in production!**
->
-> Without it, sessions won't persist across server restarts.
-
-```bash
-# Generate a secure key
-openssl rand -base64 32
-
-# Required variables
-JWT_SECRET_KEY=<your-generated-key>
-ENVIRONMENT=production
-FRONTEND_URL=https://your-domain.com
-MONGODB_URI=<your-mongodb-uri>
-DEEPSEEK_API_KEY=<your-api-key>
-CLOUDFLARE_R2_*=<your-r2-credentials>
-```
-
-### Platforms
-
-- **Frontend**: Deploy to Netlify/Vercel with `npm run build`
-- **Backend**: Deploy to Render/Fly.io with `uv run uvicorn main:app`
 
 ## License
 
