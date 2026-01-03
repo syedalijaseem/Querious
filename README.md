@@ -4,6 +4,8 @@
 
 Querious is an intelligent document Q&A agent that allows you to upload PDFs and ask questions in plain English. It uses RAG (Retrieval-Augmented Generation) to provide accurate answers with source citations.
 
+🌐 **Live Demo:** [querious.dev](https://querious.dev)
+
 ## Features
 
 - **Document Ingestion**: Upload PDF documents which are processed, chunked, and embedded for search.
