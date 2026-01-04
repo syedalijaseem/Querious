@@ -102,6 +102,14 @@ npx inngest-cli@latest dev -u http://127.0.0.1:8000/api/inngest
 | Backend (FastAPI)  | `8000` |
 | Inngest Dev Server | `8288` |
 
+## Branching Strategy
+
+- `main`: Production-ready branch (deployed)
+- `dev`: Active development branch
+- `feature/*`: Short-lived feature branches
+
+Feature branches are merged into `dev` and deleted after merge.
+
 ## Contributing
 
 1. **Always branch from `dev`**, not `main`
