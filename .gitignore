@@ -32,6 +32,8 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
+playwright-report/
+test-results/
 
 # Logs
 *.log
