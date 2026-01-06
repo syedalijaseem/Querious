@@ -71,19 +71,19 @@ def validate_file_type(content: bytes, filename: str) -> None:
 
 
 def validate_scope_ownership(db, scope_type: ScopeType, scope_id: str, user_id: str) -> None:
-    """Validate that the user owns the specified scope."""
+    """Validate that the user owns the specified scope.
+    
+    Returns 404 for both 'not found' and 'not authorized' to avoid leaking
+    information about resource existence.
+    """
     if scope_type == ScopeType.CHAT:
-        chat = db.chats.find_one({"id": scope_id})
+        chat = db.chats.find_one({"id": scope_id, "user_id": user_id})
         if not chat:
             raise HTTPException(status_code=404, detail="Chat not found")
-        if chat.get("user_id") != user_id:
-            raise HTTPException(status_code=403, detail="Not authorized to access this chat")
     elif scope_type == ScopeType.PROJECT:
-        project = db.projects.find_one({"id": scope_id})
+        project = db.projects.find_one({"id": scope_id, "user_id": user_id})
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
-        if project.get("user_id") != user_id:
-            raise HTTPException(status_code=403, detail="Not authorized to access this project")
 
 
 def get_s3_client():
@@ -257,12 +257,10 @@ async def get_chat_documents(
     """
     db = get_db()
     
-    # Validate chat ownership
-    chat = db.chats.find_one({"id": chat_id})
+    # Validate chat ownership (404 for both not found and not authorized)
+    chat = db.chats.find_one({"id": chat_id, "user_id": user.id})
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    if chat.get("user_id") != user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to access this chat")
     
     # Get chat documents
     chat_scope_docs = list(db.document_scopes.find({
@@ -311,12 +309,10 @@ async def get_project_documents(
     """Get documents for a project."""
     db = get_db()
     
-    # Validate project ownership
-    project = db.projects.find_one({"id": project_id})
+    # Validate project ownership (404 for both not found and not authorized)
+    project = db.projects.find_one({"id": project_id, "user_id": user.id})
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    if project.get("user_id") != user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to access this project")
     
     # Get project documents
     scope_docs = list(db.document_scopes.find({
@@ -365,7 +361,7 @@ async def get_document_status(
     })
     
     if not scope_link:
-        raise HTTPException(status_code=403, detail="Not authorized to access this document")
+        raise HTTPException(status_code=404, detail="Document not found")
     
     return {
         "document_id": doc["id"],
