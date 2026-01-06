@@ -419,9 +419,12 @@ def save_message(request: SaveMessageRequest, user: User = Depends(get_current_u
 # --- Document Endpoints ---
 
 @router.get("/documents")
-def list_documents(scope_type: str, scope_id: str):
+def list_documents(scope_type: str, scope_id: str, user: User = Depends(get_current_user)):
     """List documents for a scope (chat or project) via DocumentScope."""
     db = get_db()
+    
+    # Verify user owns the scope
+    verify_scope_ownership(db, scope_type, scope_id, user.id)
     
     # Get document_ids linked to this scope (M1 architecture)
     scope_links = list(db.document_scopes.find(
@@ -1058,35 +1061,5 @@ Rules:
 # --- Legacy Endpoints (for backward compatibility during migration) ---
 
 # Keep workspace endpoints for existing data
-@router.get("/workspaces")
-def list_workspaces():
-    """DEPRECATED: List workspaces. Use /projects instead."""
-    db = get_db()
-    workspaces = list(db.workspaces.find({}, {"_id": 0}))
-    return workspaces
-
-@router.get("/workspaces/{workspace_id}")
-def get_workspace(workspace_id: str):
-    """DEPRECATED: Get workspace. Use /projects/{id} instead."""
-    db = get_db()
-    workspace = db.workspaces.find_one({"id": workspace_id}, {"_id": 0})
-    if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
-    return workspace
-
-@router.get("/sessions/{session_id}")
-def get_session(session_id: str):
-    """DEPRECATED: Get session. Use /chats/{id} instead."""
-    db = get_db()
-    session = db.chat_sessions.find_one({"id": session_id}, {"_id": 0})
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    return session
-
-@router.delete("/sessions/{session_id}")
-def delete_session(session_id: str):
-    """DEPRECATED: Delete session. Use /chats/{id} instead."""
-    db = get_db()
-    db.chat_sessions.delete_one({"id": session_id})
-    db.messages.delete_many({"session_id": session_id})
-    return {"status": "deleted"}
+# Legacy endpoints removed for security - they exposed data without auth checks.
+# Clients should use /projects and /chats endpoints instead.
