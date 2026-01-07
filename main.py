@@ -29,7 +29,7 @@ def _validate_env():
 
 _validate_env()
 
-# Configure module logger
+
 logger = logging.getLogger(__name__)
 
 # --- History Sliding Window Configuration ---
