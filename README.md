@@ -6,6 +6,8 @@ Querious is an intelligent document Q&A agent that allows you to upload PDFs and
 
 🌐 **Live Demo:** [querious.dev](https://querious.dev)
 
+📜 **Technical Details:** [Building a Production RAG System](https://syedalijaseem.medium.com/building-a-production-rag-system-architecture-and-technical-decisions-bf817c8b519f?source=friends_link&sk=53acae6115cce8267bd38e6572dab947)
+
 ## Features
 
 - **Document Ingestion**: Upload PDF documents which are processed, chunked, and embedded for search.
@@ -40,10 +42,6 @@ The system uses a two-pipeline RAG (Retrieval-Augmented Generation) architecture
 
 - **Document Ingestion**: PDFs are uploaded to S3, parsed, chunked, embedded via OpenAI, and stored in MongoDB Atlas with vector indexes.
 - **Query Retrieval**: User queries are embedded, matched via cosine similarity, and the top-K chunks are fed to the LLM for response generation.
-
-### Architecture Deep Dive
-
-Read the detailed technical breakdown and design decisions in the [Medium Article](https://syedalijaseem.medium.com/building-a-production-rag-system-architecture-and-technical-decisions-bf817c8b519f?source=friends_link&sk=53acae6115cce8267bd38e6572dab947).
 
 ## Development vs Production
 
