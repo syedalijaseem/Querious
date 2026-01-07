@@ -73,10 +73,14 @@ def get_recent_history(
     
     return recent
 
+# Determine if we are in production
+env = os.getenv("ENVIRONMENT", "development")
+is_production = env == "production"
+
 inngest_client = inngest.Inngest(
     app_id="querious",
     logger=logging.getLogger("uvicorn"),
-    is_production=True,
+    is_production=is_production,
     serializer=inngest.PydanticSerializer()
 )
 
