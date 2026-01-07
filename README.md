@@ -125,6 +125,82 @@ git push origin feature/my-feature
 # Open PR to dev
 ```
 
+## Development vs Production
+
+### Branches
+
+| Branch | Purpose                                                                                                                        |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `main` | **Production only.** Deployed automatically to Vercel (frontend) and Fly.io (backend). Do not develop directly on this branch. |
+| `dev`  | **Local development.** Contains localhost configs and dev tooling. All development work happens here.                          |
+
+### Key Differences
+
+| Config     | `dev` Branch               | `main` Branch                   |
+| ---------- | -------------------------- | ------------------------------- |
+| Vite Proxy | Enabled (`localhost:8000`) | Disabled (uses Vercel rewrites) |
+| API URLs   | `http://localhost:*`       | Production domains              |
+| Inngest    | `is_production=False`      | `is_production=True`            |
+
+## Local Development
+
+### Quick Start
+
+```bash
+# Clone and checkout dev branch
+git clone https://github.com/syedalijaseem/Querious.git
+cd Querious
+git checkout dev
+
+# Backend setup
+cp .env.example .env
+# Fill in your API keys and MongoDB URI
+uv sync
+uv run uvicorn main:app --reload --port 8000
+
+# Frontend setup (new terminal)
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev
+
+# Inngest (new terminal, optional for background jobs)
+npx inngest-cli@latest dev -u http://127.0.0.1:8000/api/inngest
+```
+
+### Required Environment Variables
+
+| Variable           | Description                                                     |
+| ------------------ | --------------------------------------------------------------- |
+| `MONGODB_URI`      | MongoDB Atlas connection string                                 |
+| `JWT_SECRET_KEY`   | Secret for JWT tokens (generate with `openssl rand -base64 32`) |
+| `OPENAI_API_KEY`   | For embeddings                                                  |
+| `DEEPSEEK_API_KEY` | For LLM responses                                               |
+| `R2_*`             | Cloudflare R2 storage credentials                               |
+
+### Ports
+
+| Service            | Port   |
+| ------------------ | ------ |
+| Frontend (Vite)    | `5173` |
+| Backend (FastAPI)  | `8000` |
+| Inngest Dev Server | `8288` |
+
+## Contributing
+
+1. **Always branch from `dev`**, not `main`
+2. Open PRs targeting `dev`
+3. `main` is updated only via reviewed merges from `dev`
+
+```bash
+git checkout dev
+git pull origin dev
+git checkout -b feature/my-feature
+# ... make changes ...
+git push origin feature/my-feature
+# Open PR to dev
+```
+
 ## Setup Instructions
 
 ### Prerequisites

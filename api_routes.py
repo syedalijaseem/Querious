@@ -33,6 +33,7 @@ from models import (
     generate_id,
 )
 from auth_routes import get_current_user
+from helpers.ownership import get_user_chat, get_user_project, verify_scope_ownership
 
 # Router for API endpoints
 router = APIRouter(prefix="/api", tags=["api"])
@@ -314,8 +315,8 @@ async def update_chat(chat_id: str, request: UpdateChatRequest, user: User = Dep
     if updates:
         db.chats.update_one({"id": chat_id}, {"$set": updates})
     
-    # Return updated chat
-    updated_chat = db.chats.find_one({"id": chat_id}, {"_id": 0})
+    # Return updated chat (with user_id check for security)
+    updated_chat = db.chats.find_one({"id": chat_id, "user_id": user.id}, {"_id": 0})
     return updated_chat
 
 @router.delete("/chats/{chat_id}")
@@ -377,16 +378,21 @@ async def delete_chat(chat_id: str, user: User = Depends(get_current_user)):
 # --- Message Endpoints ---
 
 @router.get("/chats/{chat_id}/messages")
-def get_messages(chat_id: str):
+def get_messages(chat_id: str, user: User = Depends(get_current_user)):
     """Get messages for a chat."""
     db = get_db()
+    # Verify user owns this chat
+    get_user_chat(db, chat_id, user.id)
     messages = list(db.messages.find({"chat_id": chat_id}, {"_id": 0}).sort("timestamp", 1))
     return messages
 
 @router.post("/messages")
-def save_message(request: SaveMessageRequest):
+def save_message(request: SaveMessageRequest, user: User = Depends(get_current_user)):
     """Save a message to a chat."""
     db = get_db()
+    
+    # Verify user owns the chat
+    chat = get_user_chat(db, request.chat_id, user.id)
     
     # Validate role
     try:
@@ -403,8 +409,7 @@ def save_message(request: SaveMessageRequest):
     db.messages.insert_one(message.model_dump())
     
     # Auto-update chat title on first user message
-    chat = db.chats.find_one({"id": request.chat_id})
-    if chat and chat.get("title") == "New Chat" and role == MessageRole.USER:
+    if chat.get("title") == "New Chat" and role == MessageRole.USER:
         new_title = request.content[:50] + ("..." if len(request.content) > 50 else "")
         db.chats.update_one({"id": request.chat_id}, {"$set": {"title": new_title}})
     
@@ -414,9 +419,12 @@ def save_message(request: SaveMessageRequest):
 # --- Document Endpoints ---
 
 @router.get("/documents")
-def list_documents(scope_type: str, scope_id: str):
+def list_documents(scope_type: str, scope_id: str, user: User = Depends(get_current_user)):
     """List documents for a scope (chat or project) via DocumentScope."""
     db = get_db()
+    
+    # Verify user owns the scope
+    verify_scope_ownership(db, scope_type, scope_id, user.id)
     
     # Get document_ids linked to this scope (M1 architecture)
     scope_links = list(db.document_scopes.find(
@@ -436,9 +444,12 @@ def list_documents(scope_type: str, scope_id: str):
     return docs
 
 @router.get("/chats/{chat_id}/documents")
-def get_chat_documents(chat_id: str, include_project: bool = True):
+def get_chat_documents(chat_id: str, include_project: bool = True, user: User = Depends(get_current_user)):
     """Get documents for a chat, optionally including project docs."""
     db = get_db()
+    
+    # Verify user owns this chat
+    chat = get_user_chat(db, chat_id, user.id)
     
     # Get chat document_ids via DocumentScope
     chat_links = list(db.document_scopes.find(
@@ -448,14 +459,12 @@ def get_chat_documents(chat_id: str, include_project: bool = True):
     doc_ids = [s["document_id"] for s in chat_links]
     
     # If chat belongs to a project, include project docs
-    if include_project:
-        chat = db.chats.find_one({"id": chat_id})
-        if chat and chat.get("project_id"):
-            project_links = list(db.document_scopes.find(
-                {"scope_type": "project", "scope_id": chat["project_id"]},
-                {"document_id": 1}
-            ))
-            doc_ids.extend([s["document_id"] for s in project_links])
+    if include_project and chat.get("project_id"):
+        project_links = list(db.document_scopes.find(
+            {"scope_type": "project", "scope_id": chat["project_id"]},
+            {"document_id": 1}
+        ))
+        doc_ids.extend([s["document_id"] for s in project_links])
     
     if not doc_ids:
         return []
@@ -747,7 +756,7 @@ _inngest_client = None
 def get_inngest_client():
     global _inngest_client
     if _inngest_client is None:
-        _inngest_client = inngest.Inngest(app_id="querious", is_production=True)
+        _inngest_client = inngest.Inngest(app_id="querious", is_production=False)
     return _inngest_client
 
 
@@ -1052,35 +1061,5 @@ Rules:
 # --- Legacy Endpoints (for backward compatibility during migration) ---
 
 # Keep workspace endpoints for existing data
-@router.get("/workspaces")
-def list_workspaces():
-    """DEPRECATED: List workspaces. Use /projects instead."""
-    db = get_db()
-    workspaces = list(db.workspaces.find({}, {"_id": 0}))
-    return workspaces
-
-@router.get("/workspaces/{workspace_id}")
-def get_workspace(workspace_id: str):
-    """DEPRECATED: Get workspace. Use /projects/{id} instead."""
-    db = get_db()
-    workspace = db.workspaces.find_one({"id": workspace_id}, {"_id": 0})
-    if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
-    return workspace
-
-@router.get("/sessions/{session_id}")
-def get_session(session_id: str):
-    """DEPRECATED: Get session. Use /chats/{id} instead."""
-    db = get_db()
-    session = db.chat_sessions.find_one({"id": session_id}, {"_id": 0})
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    return session
-
-@router.delete("/sessions/{session_id}")
-def delete_session(session_id: str):
-    """DEPRECATED: Delete session. Use /chats/{id} instead."""
-    db = get_db()
-    db.chat_sessions.delete_one({"id": session_id})
-    db.messages.delete_many({"session_id": session_id})
-    return {"status": "deleted"}
+# Legacy endpoints removed for security - they exposed data without auth checks.
+# Clients should use /projects and /chats endpoints instead.
