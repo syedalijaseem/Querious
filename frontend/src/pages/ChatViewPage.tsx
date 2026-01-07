@@ -50,11 +50,6 @@ export function ChatViewPage() {
     id || null
   );
 
-  // Redirect if chat not found or unauthorized
-  if (isError) {
-    // Optional: Log error or check status if api throws specific error object
-    return <Navigate to="/404" replace />;
-  }
   const { data: documents = [] } = useChatDocuments(id || null);
   const uploadDocument = useUploadDocument();
   const updateChat = useUpdateChat();
@@ -348,6 +343,10 @@ export function ChatViewPage() {
 
     // Open file picker
     fileInputRef.current?.click();
+  }
+
+  if (isError) {
+    return <Navigate to="/404" replace />;
   }
 
   if (!id) {
