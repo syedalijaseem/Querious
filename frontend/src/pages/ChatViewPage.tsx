@@ -2,7 +2,7 @@
  * Chat View Page - Conversation with document upload.
  */
 import { useState, useRef, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Navigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useChat,
@@ -45,10 +45,16 @@ export function ChatViewPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isSavingRef = useRef(false); // Guard against duplicate saves
 
-  const { data: chat } = useChat(id || null);
+  const { data: chat, isError } = useChat(id || null);
   const { data: messages = [], isLoading: messagesLoading } = useChatMessages(
     id || null
   );
+
+  // Redirect if chat not found or unauthorized
+  if (isError) {
+    // Optional: Log error or check status if api throws specific error object
+    return <Navigate to="/404" replace />;
+  }
   const { data: documents = [] } = useChatDocuments(id || null);
   const uploadDocument = useUploadDocument();
   const updateChat = useUpdateChat();

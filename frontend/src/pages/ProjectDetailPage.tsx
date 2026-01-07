@@ -2,7 +2,7 @@
  * Project Detail Page - Shows project chats and files.
  */
 import { useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Navigate } from "react-router-dom";
 import { Trash2 } from "lucide-react";
 import { useProject } from "../hooks/useProjects";
 import {
@@ -45,7 +45,11 @@ export function ProjectDetailPage() {
     id || null
   );
 
-  const { data: project, isLoading: projectLoading } = useProject(id || "");
+  const {
+    data: project,
+    isLoading: projectLoading,
+    isError,
+  } = useProject(id || "");
   const { data: chats = [], isLoading: chatsLoading } = useProjectChats(
     id || null
   );
@@ -241,12 +245,8 @@ export function ProjectDetailPage() {
     return <LoadingSpinner size="lg" text="Loading project..." />;
   }
 
-  if (!project) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-[#a3a3a3]">Project not found</div>
-      </div>
-    );
+  if (isError || !project) {
+    return <Navigate to="/404" replace />;
   }
 
   return (
