@@ -5,18 +5,16 @@ Handles the OAuth2 flow for Google Sign-In:
 2. Exchange authorization code for tokens
 3. Fetch user profile from Google
 """
-import os
 import httpx
 from typing import Optional
 from urllib.parse import urlencode
-from dotenv import load_dotenv
 
-load_dotenv()
+from config import settings
 
 # Google OAuth2 configuration
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback")
+GOOGLE_CLIENT_ID = settings.GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET = settings.GOOGLE_CLIENT_SECRET
+GOOGLE_REDIRECT_URI = settings.GOOGLE_REDIRECT_URI
 
 # Google OAuth2 endpoints
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"

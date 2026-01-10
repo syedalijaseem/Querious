@@ -5,27 +5,20 @@ Provides functions for managing chunks in the chunks collection:
 - delete_chunks: Cascade delete for a document
 - get_chunks: Retrieve chunks for debugging
 """
-import os
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
 from pymongo import MongoClient, UpdateOne
-from dotenv import load_dotenv
 
-load_dotenv()
-
+from config import settings
 from models import Chunk, Document, DocumentStatus
 
 
 def get_db():
     """Get MongoDB database connection."""
-    mongodb_uri = os.getenv("MONGODB_URI")
-    if not mongodb_uri:
-        raise RuntimeError("MONGODB_URI not configured")
-    client = MongoClient(mongodb_uri)
-    db_name = os.getenv("MONGODB_DATABASE", "docurag")
-    return client[db_name]
+    client = MongoClient(settings.MONGODB_URI)
+    return client[settings.MONGODB_DATABASE]
 
 
 def generate_chunk_id(document_id: str, chunk_index: int) -> str:

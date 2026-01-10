@@ -10,10 +10,7 @@ from fastapi import APIRouter, HTTPException, Response, Request, Depends
 from fastapi.responses import RedirectResponse
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
-import os
-
-from dotenv import load_dotenv
-load_dotenv()
+from config import settings
 
 from models import (
     User, UserProvider, RefreshToken,
@@ -42,11 +39,8 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 def get_db():
     """Get MongoDB database connection."""
-    uri = os.getenv("MONGODB_URI")
-    if not uri:
-        raise HTTPException(status_code=500, detail="Database not configured")
-    client = MongoClient(uri)
-    return client[os.getenv("MONGODB_DATABASE", "docurag")]
+    client = MongoClient(settings.MONGODB_URI)
+    return client[settings.MONGODB_DATABASE]
 
 
 # --- Plan-based Token Limits ---
@@ -70,8 +64,8 @@ def create_user_response(user_dict: dict) -> dict:
 
 # --- Cookie Configuration ---
 
-COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
-COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN", None)
+COOKIE_SECURE = settings.COOKIE_SECURE
+COOKIE_DOMAIN = settings.COOKIE_DOMAIN
 COOKIE_SAMESITE = "lax"  # lax allows cookies on top-level navigations (OAuth redirects)
 
 
@@ -927,8 +921,7 @@ async def google_callback(code: str, response: Response, state: Optional[str] = 
     )
     db.refresh_tokens.insert_one(refresh_doc.model_dump())
     
-    # Redirect to frontend with cookies
-    frontend_url = os.getenv("APP_URL", "http://localhost:5173")
+    # Redirect to frontend with cookies\n    frontend_url = settings.APP_URL
     redirect_response = RedirectResponse(url=frontend_url, status_code=302)
     
     # Set cookies on the redirect response

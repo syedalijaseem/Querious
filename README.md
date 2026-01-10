@@ -32,7 +32,7 @@ Querious is an intelligent document Q&A agent that allows you to upload PDFs and
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS, TanStack Query
 - **Backend**: Python (FastAPI), MongoDB (Data + Vector Storage)
 - **AI**: OpenAI (Embeddings), DeepSeek (LLM)
-- **Infrastructure**: Inngest (Background Jobs), AWS S3 (File Storage)
+- **Infrastructure**: Inngest (Background Jobs), AWS S3 / Cloudflare R2 (File Storage)
 
 ## Architecture
 
@@ -43,227 +43,105 @@ The system uses a two-pipeline RAG (Retrieval-Augmented Generation) architecture
 - **Document Ingestion**: PDFs are uploaded to S3, parsed, chunked, embedded via OpenAI, and stored in MongoDB Atlas with vector indexes.
 - **Query Retrieval**: User queries are embedded, matched via cosine similarity, and the top-K chunks are fed to the LLM for response generation.
 
-## Development vs Production
-
-### Branches
-
-| Branch | Purpose                                                                                                                        |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `main` | **Production only.** Deployed automatically to Vercel (frontend) and Fly.io (backend). Do not develop directly on this branch. |
-| `dev`  | **Local development.** Contains localhost configs and dev tooling. All development work happens here.                          |
-
-### Key Differences
-
-| Config     | `dev` Branch               | `main` Branch                   |
-| ---------- | -------------------------- | ------------------------------- |
-| Vite Proxy | Enabled (`localhost:8000`) | Disabled (uses Vercel rewrites) |
-| API URLs   | `http://localhost:*`       | Production domains              |
-| Inngest    | `is_production=False`      | `is_production=True`            |
-
 ## Local Development
-
-### Quick Start
-
-```bash
-# Clone and checkout dev branch
-git clone https://github.com/syedalijaseem/Querious.git
-cd Querious
-git checkout dev
-
-# Backend setup
-cp .env.example .env
-# Fill in your API keys and MongoDB URI
-uv sync
-uv run uvicorn main:app --reload --port 8000
-
-# Frontend setup (new terminal)
-cd frontend
-cp .env.example .env.local
-npm install
-npm run dev
-
-# Inngest (new terminal, optional for background jobs)
-npx inngest-cli@latest dev -u http://127.0.0.1:8000/api/inngest
-```
-
-### Required Environment Variables
-
-| Variable           | Description                                                     |
-| ------------------ | --------------------------------------------------------------- |
-| `MONGODB_URI`      | MongoDB Atlas connection string                                 |
-| `JWT_SECRET_KEY`   | Secret for JWT tokens (generate with `openssl rand -base64 32`) |
-| `OPENAI_API_KEY`   | For embeddings                                                  |
-| `DEEPSEEK_API_KEY` | For LLM responses                                               |
-| `R2_*` or `AWS_*`  | Cloudflare R2 or AWS S3 storage credentials                     |
-
-### Ports
-
-| Service            | Port   |
-| ------------------ | ------ |
-| Frontend (Vite)    | `5173` |
-| Backend (FastAPI)  | `8000` |
-| Inngest Dev Server | `8288` |
-
-## Branching Strategy
-
-- `main`: Production-ready branch (deployed)
-- `dev`: Active development branch
-- `feature/*`: Short-lived feature branches
-
-Feature branches are merged into `dev` and deleted after merge.
-
-## Contributing
-
-1. **Always branch from `dev`**, not `main`
-2. Open PRs targeting `dev`
-3. `main` is updated only via reviewed merges from `dev`
-
-```bash
-git checkout dev
-git pull origin dev
-git checkout -b feature/my-feature
-# ... make changes ...
-git push origin feature/my-feature
-# Open PR to dev
-```
-
-## Development vs Production
-
-### Branches
-
-| Branch | Purpose                                                                                                                        |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `main` | **Production only.** Deployed automatically to Vercel (frontend) and Fly.io (backend). Do not develop directly on this branch. |
-| `dev`  | **Local development.** Contains localhost configs and dev tooling. All development work happens here.                          |
-
-### Key Differences
-
-| Config     | `dev` Branch               | `main` Branch                   |
-| ---------- | -------------------------- | ------------------------------- |
-| Vite Proxy | Enabled (`localhost:8000`) | Disabled (uses Vercel rewrites) |
-| API URLs   | `http://localhost:*`       | Production domains              |
-| Inngest    | `is_production=False`      | `is_production=True`            |
-
-## Local Development
-
-### Quick Start
-
-```bash
-# Clone and checkout dev branch
-git clone https://github.com/syedalijaseem/Querious.git
-cd Querious
-git checkout dev
-
-# Backend setup
-cp .env.example .env
-# Fill in your API keys and MongoDB URI
-uv sync
-uv run uvicorn main:app --reload --port 8000
-
-# Frontend setup (new terminal)
-cd frontend
-cp .env.example .env.local
-npm install
-npm run dev
-
-# Inngest (new terminal, optional for background jobs)
-npx inngest-cli@latest dev -u http://127.0.0.1:8000/api/inngest
-```
-
-### Required Environment Variables
-
-| Variable           | Description                                                     |
-| ------------------ | --------------------------------------------------------------- |
-| `MONGODB_URI`      | MongoDB Atlas connection string                                 |
-| `JWT_SECRET_KEY`   | Secret for JWT tokens (generate with `openssl rand -base64 32`) |
-| `OPENAI_API_KEY`   | For embeddings                                                  |
-| `DEEPSEEK_API_KEY` | For LLM responses                                               |
-| `R2_*`             | Cloudflare R2 storage credentials                               |
-
-### Ports
-
-| Service            | Port   |
-| ------------------ | ------ |
-| Frontend (Vite)    | `5173` |
-| Backend (FastAPI)  | `8000` |
-| Inngest Dev Server | `8288` |
-
-## Contributing
-
-1. **Always branch from `dev`**, not `main`
-2. Open PRs targeting `dev`
-3. `main` is updated only via reviewed merges from `dev`
-
-```bash
-git checkout dev
-git pull origin dev
-git checkout -b feature/my-feature
-# ... make changes ...
-git push origin feature/my-feature
-# Open PR to dev
-```
-
-## Setup Instructions
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.12+
 - Node.js 18+
 - MongoDB Atlas account
-- AWS S3 bucket
+- Cloudflare R2 or AWS S3 bucket
 - OpenAI & DeepSeek API keys
 
-### Environment Variables
+### Quick Start
 
-Copy `.env.example` to `.env` in the root directory and fill in your secrets:
+```bash
+# Clone the repository
+git clone https://github.com/syedalijaseem/Querious.git
+cd Querious
+
+# Backend setup
+cp .env.example .env
+# Fill in your API keys and secrets (see Environment Variables section)
+uv sync
+uv run uvicorn main:app --reload --port 8000
+
+# Frontend setup (new terminal)
+cd frontend
+npm install
+npm run dev
+
+# Inngest (new terminal, optional for background jobs)
+npx inngest-cli@latest dev -u http://127.0.0.1:8000/api/inngest
+```
+
+### Ports
+
+| Service            | Port   |
+| ------------------ | ------ |
+| Frontend (Vite)    | `5173` |
+| Backend (FastAPI)  | `8000` |
+| Inngest Dev Server | `8288` |
+
+## Environment Variables
+
+Contributors must provide their own API keys and secrets. Copy `.env.example` to `.env` and fill in the values.
 
 ```bash
 cp .env.example .env
 ```
 
-Copy `frontend/.env.example` to `frontend/.env.local`:
+### Required Variables
+
+| Variable               | Description                                           |
+| ---------------------- | ----------------------------------------------------- |
+| `MONGODB_URI`          | MongoDB Atlas connection string                       |
+| `JWT_SECRET_KEY`       | Secret for JWT tokens (use `openssl rand -base64 32`) |
+| `OPENAI_API_KEY`       | OpenAI API key for embeddings                         |
+| `DEEPSEEK_API_KEY`     | DeepSeek API key for LLM responses                    |
+| `R2_ACCESS_KEY_ID`     | Cloudflare R2 access key ID                           |
+| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 secret access key                       |
+| `R2_ENDPOINT`          | Cloudflare R2 endpoint URL                            |
+| `R2_BUCKET_NAME`       | R2 bucket name                                        |
+
+### Optional Variables
+
+| Variable               | Default                 | Description                  |
+| ---------------------- | ----------------------- | ---------------------------- |
+| `ENVIRONMENT`          | `development`           | Set to `production` in prod  |
+| `MONGODB_DATABASE`     | `docurag`               | Database name                |
+| `FRONTEND_URL`         | `http://localhost:5173` | Frontend URL for CORS        |
+| `GOOGLE_CLIENT_ID`     | —                       | For Google OAuth (optional)  |
+| `GOOGLE_CLIENT_SECRET` | —                       | For Google OAuth (optional)  |
+| `RESEND_API_KEY`       | —                       | For email service (optional) |
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch from `main`:
+   - `feat/new-feature-name`
+   - `fix/bug-description`
+   - `chore/tooling-update`
+3. Make your changes
+4. Open a Pull Request to `main`
+5. Address review feedback
+6. Your PR will be merged after approval
 
 ```bash
-cp frontend/.env.example frontend/.env.local
+git checkout main
+git pull origin main
+git checkout -b feat/my-feature
+# ... make changes ...
+git push origin feat/my-feature
+# Open PR to main
 ```
 
-### Installation
+## Security Notes
 
-1. **Backend**:
-
-   ```bash
-   # Using uv (recommended)
-   uv sync
-
-   # Or using pip
-   pip install -r requirements.txt
-   ```
-
-2. **Frontend**:
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-### Running Locally
-
-1. **Start Backend**:
-
-   ```bash
-   uv run uvicorn main:app --reload --host 127.0.0.1 --port 8000
-   ```
-
-2. **Start Frontend**:
-
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-
-3. **Start Inngest** (for background jobs):
-   ```bash
-   npx inngest-cli@latest dev -u http://127.0.0.1:8000/api/inngest
-   ```
+- **Never commit `.env` files** — they are gitignored by default
+- **Rotate keys immediately** if you suspect they have been leaked
+- **Use least-privilege API keys** — only grant the permissions your app needs
+- **JWT_SECRET_KEY must be strong** — use `openssl rand -base64 32` to generate
 
 ## Plan Limits
 
@@ -275,4 +153,4 @@ cp frontend/.env.example frontend/.env.local
 
 ## License
 
-This project is licensed under AGPL-3.0. If you use, modify, or deploy this code (including as a web service), you must open-source your changes under the same license.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

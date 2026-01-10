@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI
 import inngest.fast_api
 from inngest.experimental import ai
-from dotenv import load_dotenv
+from config import settings
 import uuid
 import os
 import datetime
@@ -18,16 +18,7 @@ from models import (
     ChunkWithPage,
 )
 
-load_dotenv()
-
-# Validate required environment variables at startup
-def _validate_env():
-    required = ["MONGODB_URI"]
-    missing = [var for var in required if not os.getenv(var)]
-    if missing:
-        raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
-
-_validate_env()
+# Config validation happens automatically on import via pydantic-settings
 
 
 logger = logging.getLogger(__name__)
@@ -73,9 +64,8 @@ def get_recent_history(
     
     return recent
 
-# Determine if we are in production
-env = os.getenv("ENVIRONMENT", "development")
-is_production = env == "production"
+# Use centralized config for environment detection
+is_production = settings.is_production
 
 inngest_client = inngest.Inngest(
     app_id="querious",
@@ -337,7 +327,7 @@ Rules:
     )
 
     adapter = ai.openai.Adapter(
-        auth_key=os.getenv("DEEPSEEK_API_KEY"),
+        auth_key=settings.DEEPSEEK_API_KEY,
         model="deepseek-chat",
         base_url="https://api.deepseek.com/v1"
     )
@@ -376,8 +366,8 @@ Rules:
         def _update_tokens():
             from pymongo import MongoClient
             import os
-            client = MongoClient(os.getenv("MONGODB_URI"))
-            db_name = os.getenv("MONGODB_DATABASE", "docurag")
+            client = MongoClient(settings.MONGODB_URI)
+            db_name = settings.MONGODB_DATABASE
             db = client[db_name]
             db.users.update_one(
                 {"id": event_data.user_id},
@@ -410,16 +400,8 @@ app = FastAPI(title="DocuRAG API")
 # CORS configuration - permissive in dev, restricted in production
 from fastapi.middleware.cors import CORSMiddleware
 
-# Determine environment
-ENV = os.getenv("ENVIRONMENT", "development")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-
-# In development, allow all origins for easier testing
-# In production, restrict to frontend domain only
-if ENV == "production":
-    allowed_origins = [FRONTEND_URL]
-else:
-    allowed_origins = ["*"]
+# Use centralized config for CORS
+allowed_origins = settings.cors_origins
 
 app.add_middleware(
     CORSMiddleware,

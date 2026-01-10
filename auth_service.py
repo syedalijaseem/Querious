@@ -2,7 +2,6 @@
 
 Provides password hashing, JWT generation/validation, and token utilities.
 """
-import os
 import secrets
 import hashlib
 import warnings
@@ -11,28 +10,14 @@ from typing import Optional
 
 import bcrypt
 from jose import JWTError, jwt
-from dotenv import load_dotenv
+from config import settings
 
-load_dotenv()
+# --- Configuration (from centralized config) ---
 
-# --- Configuration ---
-
-# JWT Settings - IMPORTANT: JWT_SECRET_KEY must be set in production!
-_jwt_secret_from_env = os.getenv("JWT_SECRET_KEY")
-if not _jwt_secret_from_env:
-    warnings.warn(
-        "JWT_SECRET_KEY not set - using random key. "
-        "Sessions will NOT persist across server restarts! "
-        "Set JWT_SECRET_KEY in production with: openssl rand -base64 32",
-        RuntimeWarning
-    )
-    JWT_SECRET_KEY = secrets.token_urlsafe(32)
-else:
-    JWT_SECRET_KEY = _jwt_secret_from_env
-
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
-REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+JWT_SECRET_KEY = settings.JWT_SECRET_KEY
+JWT_ALGORITHM = settings.JWT_ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 
 # Bcrypt cost factor (12 is recommended for security)
 BCRYPT_ROUNDS = 12

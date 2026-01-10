@@ -15,9 +15,7 @@ from fastapi.responses import JSONResponse
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 
-from dotenv import load_dotenv
-load_dotenv()
-
+from config import settings
 from models import (
     Document, DocumentScope, DocumentStatus, ScopeType,
     Chat, Project
@@ -36,12 +34,8 @@ PDF_MAGIC_BYTES = b"%PDF-"
 
 def get_db():
     """Get MongoDB database connection."""
-    mongodb_uri = os.getenv("MONGODB_URI")
-    if not mongodb_uri:
-        raise RuntimeError("MONGODB_URI not configured")
-    client = MongoClient(mongodb_uri)
-    db_name = os.getenv("MONGODB_DATABASE", "docurag")
-    return client[db_name]
+    client = MongoClient(settings.MONGODB_URI)
+    return client[settings.MONGODB_DATABASE]
 
 
 # --- Helper Functions ---
@@ -91,18 +85,16 @@ def get_s3_client():
     import boto3
     return boto3.client(
         "s3",
-        aws_access_key_id=os.getenv("R2_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.getenv("R2_SECRET_ACCESS_KEY"),
-        endpoint_url=os.getenv("R2_ENDPOINT"),
+        aws_access_key_id=settings.R2_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
+        endpoint_url=settings.R2_ENDPOINT,
     )
 
 
 def upload_to_s3(content: bytes, s3_key: str) -> None:
     """Upload file content to R2."""
     s3 = get_s3_client()
-    bucket = os.getenv("R2_BUCKET_NAME")
-    if not bucket:
-        raise RuntimeError("R2_BUCKET_NAME not configured")
+    bucket = settings.R2_BUCKET_NAME
     
     s3.put_object(
         Bucket=bucket,
@@ -115,9 +107,7 @@ def upload_to_s3(content: bytes, s3_key: str) -> None:
 def delete_from_s3(s3_key: str) -> None:
     """Delete file from R2."""
     s3 = get_s3_client()
-    bucket = os.getenv("R2_BUCKET_NAME")
-    if not bucket:
-        return
+    bucket = settings.R2_BUCKET_NAME
     
     try:
         s3.delete_object(Bucket=bucket, Key=s3_key)

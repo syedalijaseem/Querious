@@ -2,24 +2,21 @@
 
 Provides functions for sending transactional emails (verification, password reset).
 """
-import os
-from typing import Optional
 import resend
-from dotenv import load_dotenv
 import logging
 
-load_dotenv()
+from config import settings
 
 # Module logger
 logger = logging.getLogger(__name__)
 
 # Configure Resend
-resend.api_key = os.getenv("RESEND_API_KEY", "")
+resend.api_key = settings.RESEND_API_KEY
 
 # Email configuration
-FROM_EMAIL = os.getenv("FROM_EMAIL", "DocuRAG <onboarding@resend.dev>")
-APP_NAME = os.getenv("APP_NAME", "DocuRAG")
-APP_URL = os.getenv("APP_URL", "http://localhost:5173")
+FROM_EMAIL = settings.FROM_EMAIL
+APP_NAME = settings.APP_NAME
+APP_URL = settings.APP_URL
 
 
 def is_configured() -> bool:

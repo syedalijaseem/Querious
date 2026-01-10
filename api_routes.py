@@ -11,12 +11,9 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
 from pymongo import MongoClient
-from dotenv import load_dotenv
-import os
+from config import settings
 import inngest
 import logging
-
-load_dotenv()
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -43,15 +40,9 @@ _db_client = None
 
 def get_db():
     global _db_client
-    uri = os.getenv("MONGODB_URI")
-    if not uri:
-        raise HTTPException(status_code=500, detail="MONGODB_URI not configured")
-    
     if _db_client is None:
-        _db_client = MongoClient(uri)
-        
-    db_name = os.getenv("MONGODB_DATABASE", "docurag")
-    return _db_client[db_name]
+        _db_client = MongoClient(settings.MONGODB_URI)
+    return _db_client[settings.MONGODB_DATABASE]
 
 
 # --- Plan Limits ---
@@ -756,7 +747,7 @@ _inngest_client = None
 def get_inngest_client():
     global _inngest_client
     if _inngest_client is None:
-        _inngest_client = inngest.Inngest(app_id="querious", is_production=True)
+        _inngest_client = inngest.Inngest(app_id="querious", is_production=settings.is_production)
     return _inngest_client
 
 
@@ -988,7 +979,7 @@ Rules:
                     "POST",
                     "https://api.deepseek.com/v1/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {os.getenv('DEEPSEEK_API_KEY')}",
+                        "Authorization": f"Bearer {settings.DEEPSEEK_API_KEY}",
                         "Content-Type": "application/json"
                     },
                     json={

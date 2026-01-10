@@ -3,13 +3,11 @@
 Searches chunks collection using document_id filtering.
 Gets document_ids from DocumentScope for user's scopes.
 """
-import os
 from typing import Optional
 from pymongo import MongoClient
-from dotenv import load_dotenv
 import logging
 
-load_dotenv()
+from config import settings
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -17,12 +15,8 @@ logger = logging.getLogger(__name__)
 
 def get_db():
     """Get MongoDB database connection."""
-    mongodb_uri = os.getenv("MONGODB_URI")
-    if not mongodb_uri:
-        raise RuntimeError("MONGODB_URI not configured")
-    client = MongoClient(mongodb_uri)
-    db_name = os.getenv("MONGODB_DATABASE", "docurag")
-    return client[db_name]
+    client = MongoClient(settings.MONGODB_URI)
+    return client[settings.MONGODB_DATABASE]
 
 
 def get_document_ids_for_scope(

@@ -24,6 +24,8 @@ from botocore.exceptions import ClientError
 from pathlib import Path
 import uuid
 
+from config import settings
+
 
 _s3_client = None
 
@@ -36,23 +38,23 @@ def get_s3_client():
     if _s3_client is not None:
         return _s3_client
 
-    provider = os.getenv('STORAGE_PROVIDER', 'r2').lower()
+    provider = settings.STORAGE_PROVIDER.lower()
     
     if provider == 's3':
         # AWS S3 configuration
         _s3_client = boto3.client(
             's3',
-            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-            region_name=os.getenv('AWS_REGION', 'us-east-1')
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION
         )
     else:
         # Cloudflare R2 configuration (default)
         _s3_client = boto3.client(
             's3',
-            aws_access_key_id=os.getenv('R2_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.getenv('R2_SECRET_ACCESS_KEY'),
-            endpoint_url=os.getenv('R2_ENDPOINT'),
+            aws_access_key_id=settings.R2_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
+            endpoint_url=settings.R2_ENDPOINT,
         )
     
     return _s3_client
@@ -63,16 +65,16 @@ def get_bucket_name() -> str:
     
     Uses R2_BUCKET_NAME by default, or AWS_S3_BUCKET if STORAGE_PROVIDER=s3.
     """
-    provider = os.getenv('STORAGE_PROVIDER', 'r2').lower()
+    provider = settings.STORAGE_PROVIDER.lower()
     
     if provider == 's3':
-        bucket = os.getenv('AWS_S3_BUCKET')
+        bucket = settings.AWS_S3_BUCKET
         if not bucket:
-            raise ValueError("AWS_S3_BUCKET environment variable not set")
+            raise ValueError("AWS_S3_BUCKET not configured")
     else:
-        bucket = os.getenv('R2_BUCKET_NAME')
+        bucket = settings.R2_BUCKET_NAME
         if not bucket:
-            raise ValueError("R2_BUCKET_NAME environment variable not set")
+            raise ValueError("R2_BUCKET_NAME not configured")
     
     return bucket
 

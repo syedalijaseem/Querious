@@ -1,8 +1,6 @@
-import os
 from pymongo import MongoClient
-from dotenv import load_dotenv
 
-load_dotenv()
+from config import settings
 
 # Global cached client
 _mongo_client = None
@@ -12,12 +10,13 @@ class MongoDBStorage:
     """Vector storage using MongoDB Atlas with vector search capabilities."""
     
     def __init__(self, collection_name: str = "documents", db_name: str = None):
-        uri = os.getenv("MONGODB_URI")
-        if not uri:
-            raise ValueError("MONGODB_URI environment variable is not set")
-        
         if db_name is None:
-            db_name = os.getenv("MONGODB_DATABASE", "docurag")
+            db_name = settings.MONGODB_DATABASE
+        
+        # Use cached client if available
+        global _mongo_client
+        if _mongo_client is None:
+            _mongo_client = MongoClient(settings.MONGODB_URI)
         
         # Use cached client if available
         global _mongo_client
