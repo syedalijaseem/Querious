@@ -3,10 +3,17 @@ import pytest
 from unittest.mock import MagicMock
 import os
 
-# Set test environment
+# Set ALL required environment variables BEFORE any config.py imports.
+# config.py uses pydantic-settings which validates on import.
 os.environ["ENVIRONMENT"] = "test"
 os.environ["JWT_SECRET_KEY"] = "test-secret-key-for-testing-only-32chars!"
 os.environ["MONGODB_URI"] = "mongodb://localhost:27017"
+os.environ["OPENAI_API_KEY"] = "test-openai-key"
+os.environ["DEEPSEEK_API_KEY"] = "test-deepseek-key"
+os.environ["R2_ACCESS_KEY_ID"] = "test-r2-access"
+os.environ["R2_SECRET_ACCESS_KEY"] = "test-r2-secret"
+os.environ["R2_ENDPOINT"] = "https://test.r2.cloudflarestorage.com"
+os.environ["R2_BUCKET_NAME"] = "test-bucket"
 
 @pytest.fixture
 def mock_db():

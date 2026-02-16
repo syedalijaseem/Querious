@@ -18,11 +18,6 @@ class MongoDBStorage:
         if _mongo_client is None:
             _mongo_client = MongoClient(settings.MONGODB_URI)
         
-        # Use cached client if available
-        global _mongo_client
-        if _mongo_client is None:
-            _mongo_client = MongoClient(uri)
-            
         self.client = _mongo_client
         self.db = self.client[db_name]
         self.collection = self.db[collection_name]

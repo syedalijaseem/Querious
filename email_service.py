@@ -4,6 +4,7 @@ Provides functions for sending transactional emails (verification, password rese
 """
 import resend
 import logging
+from typing import Optional
 
 from config import settings
 
