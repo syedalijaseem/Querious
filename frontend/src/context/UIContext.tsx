@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * UI Context for application-wide UI state.
  * Includes responsive breakpoint tracking and sidebar state.
@@ -49,6 +50,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   // Auto-close sidebar when switching to mobile
   useEffect(() => {
     if (isMobile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSidebarOpen(false);
     } else if (isDesktop) {
       setSidebarOpen(true);

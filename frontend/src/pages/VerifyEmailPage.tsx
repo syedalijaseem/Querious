@@ -28,45 +28,45 @@ export function VerifyEmailPage({
     if (hasVerified.current) return;
     hasVerified.current = true;
 
-    verifyEmail();
-  }, [token]);
+    async function verifyEmail() {
+      try {
+        const response = await fetch(`/api/auth/verify-email?token=${token}`, {
+          method: "GET",
+          credentials: "include",
+        });
 
-  async function verifyEmail() {
-    try {
-      const response = await fetch(`/api/auth/verify-email?token=${token}`, {
-        method: "GET",
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        setStatus("success");
-        setMessage("Your email has been verified successfully!");
-        // Wait a moment before redirecting
-        setTimeout(onSuccess, 2000);
-      } else {
-        const data = await response.json().catch(() => ({}));
-        const errorDetail = data.detail || "";
-
-        // If token is invalid/expired, the email might already be verified
-        // Show a helpful message and allow login
-        if (
-          errorDetail.includes("Invalid") ||
-          errorDetail.includes("expired")
-        ) {
-          setStatus("error");
-          setMessage(
-            "This verification link has already been used or expired. If you've already verified, try logging in."
-          );
+        if (response.ok) {
+          setStatus("success");
+          setMessage("Your email has been verified successfully!");
+          // Wait a moment before redirecting
+          setTimeout(onSuccess, 2000);
         } else {
-          setStatus("error");
-          setMessage(errorDetail || "Verification failed. Please try again.");
+          const data = await response.json().catch(() => ({}));
+          const errorDetail = data.detail || "";
+
+          // If token is invalid/expired, the email might already be verified
+          // Show a helpful message and allow login
+          if (
+            errorDetail.includes("Invalid") ||
+            errorDetail.includes("expired")
+          ) {
+            setStatus("error");
+            setMessage(
+              "This verification link has already been used or expired. If you've already verified, try logging in."
+            );
+          } else {
+            setStatus("error");
+            setMessage(errorDetail || "Verification failed. Please try again.");
+          }
         }
+      } catch {
+        setStatus("error");
+        setMessage("Failed to verify email. Please try again.");
       }
-    } catch (err) {
-      setStatus("error");
-      setMessage("Failed to verify email. Please try again.");
     }
-  }
+
+    verifyEmail();
+  }, [token, onSuccess]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-neutral-100 dark:bg-[#242424] transition-colors">

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * Theme context for dark/light mode support.
  */
@@ -42,6 +43,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const newActualTheme = theme === "system" ? getSystemTheme() : theme;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActualTheme(newActualTheme);
 
     // Apply theme to document

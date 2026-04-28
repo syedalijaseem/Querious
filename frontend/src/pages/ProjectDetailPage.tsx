@@ -126,7 +126,6 @@ export function ProjectDetailPage() {
 
     // Step 1: Pre-validation (Type & Size)
     const validFiles: File[] = [];
-    let invalidCount = 0;
 
     allFiles.forEach((file) => {
       // Check type
@@ -135,7 +134,6 @@ export function ProjectDetailPage() {
           `Skipped "${file.name}": Only PDF files are supported.`,
           "warning"
         );
-        invalidCount++;
         return;
       }
 
@@ -145,7 +143,6 @@ export function ProjectDetailPage() {
           `Skipped "${file.name}": File size exceeds 50MB limit.`,
           "warning"
         );
-        invalidCount++;
         return;
       }
 

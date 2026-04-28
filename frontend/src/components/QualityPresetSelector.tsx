@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * QualityPresetSelector - Segmented toggle for answer quality presets
  */

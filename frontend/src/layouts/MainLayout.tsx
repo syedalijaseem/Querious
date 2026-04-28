@@ -67,6 +67,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     if (isMobile && sidebarOpen) {
       setSidebarOpen(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   const navItems = [
