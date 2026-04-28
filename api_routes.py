@@ -47,11 +47,7 @@ def get_db():
 
 # --- Plan Limits ---
 # Resource limits per plan
-PLAN_LIMITS = {
-    "free": {"projects": 1, "chats": 3, "documents": 3, "docs_per_scope": 3, "token_limit": 10000},
-    "pro": {"projects": 10, "chats": None, "documents": 30, "docs_per_scope": 5, "token_limit": 500000},  # None = unlimited
-    "premium": {"projects": None, "chats": None, "documents": None, "docs_per_scope": 10, "token_limit": 2000000},
-}
+from shared_utils import PLAN_LIMITS, validate_pdf_content
 
 
 # --- Request Models ---
@@ -476,15 +472,7 @@ MAX_PDFS_PER_SCOPE = 10  # Maximum number of PDFs per chat/project
 MAX_TOTAL_SIZE_PER_SCOPE = 50 * 1024 * 1024  # 50 MB total per chat/project
 
 # PDF magic bytes
-PDF_MAGIC_BYTES = [b'%PDF', b'\x25\x50\x44\x46']
-
-
-def validate_pdf_content(content: bytes) -> bool:
-    """Validate that file content starts with PDF magic bytes."""
-    if len(content) < 4:
-        return False
-    header = content[:4]
-    return any(header.startswith(magic) for magic in PDF_MAGIC_BYTES)
+# validate_pdf_content moved to shared_utils.py
 
 
 @router.get("/upload-limits")

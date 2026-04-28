@@ -203,21 +203,21 @@ class TestPDFValidation:
     """Defence-in-depth checks for file uploads."""
 
     def test_valid_pdf_header_accepted(self):
-        from api_routes import validate_pdf_content
+        from shared_utils import validate_pdf_content
 
         assert validate_pdf_content(b"%PDF-1.7 ...") is True
 
     def test_latex_with_pdf_extension_rejected(self):
-        from api_routes import validate_pdf_content
+        from shared_utils import validate_pdf_content
 
         assert validate_pdf_content(b"\\documentclass{article}") is False
 
     def test_zip_magic_bytes_rejected(self):
-        from api_routes import validate_pdf_content
+        from shared_utils import validate_pdf_content
 
         assert validate_pdf_content(b"PK\x03\x04 ...") is False
 
     def test_null_bytes_rejected(self):
-        from api_routes import validate_pdf_content
+        from shared_utils import validate_pdf_content
 
         assert validate_pdf_content(b"\x00\x00\x00\x00") is False

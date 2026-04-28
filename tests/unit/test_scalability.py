@@ -51,7 +51,7 @@ class TestPlanLimits:
 
     @pytest.fixture(autouse=True)
     def _load_limits(self):
-        from api_routes import PLAN_LIMITS
+        from shared_utils import PLAN_LIMITS
         self.limits = PLAN_LIMITS
 
     def test_free_tier_has_finite_project_limit(self):
@@ -108,25 +108,25 @@ class TestSlidingWindow:
         return [{"role": "user", "content": content} for _ in range(n)]
 
     def test_returns_empty_for_empty_input(self):
-        from main import get_recent_history
+        from history_utils import get_recent_history
 
         assert get_recent_history([]) == []
 
     def test_caps_at_max_messages(self):
-        from main import get_recent_history
+        from history_utils import get_recent_history
 
         result = get_recent_history(self._msgs(20), max_messages=6)
         assert len(result) <= 6
 
     def test_returns_all_when_under_cap(self):
-        from main import get_recent_history
+        from history_utils import get_recent_history
 
         msgs = self._msgs(4)
         result = get_recent_history(msgs, max_messages=10)
         assert len(result) == 4
 
     def test_keeps_most_recent_messages(self):
-        from main import get_recent_history
+        from history_utils import get_recent_history
 
         msgs = [{"role": "user", "content": f"msg-{i}"} for i in range(20)]
         result = get_recent_history(msgs, max_messages=4)
@@ -134,7 +134,7 @@ class TestSlidingWindow:
         assert result[-1]["content"] == "msg-19"
 
     def test_trims_by_token_budget(self):
-        from main import get_recent_history
+        from history_utils import get_recent_history
 
         # Each message is ~250 tokens (1000 chars / 4)
         big = self._msgs(10, content="x" * 1000)
@@ -143,7 +143,7 @@ class TestSlidingWindow:
 
     def test_preserves_minimum_two_messages(self):
         """Even with a tiny token budget, at least 2 messages remain."""
-        from main import get_recent_history
+        from history_utils import get_recent_history
 
         big = self._msgs(10, content="x" * 5000)
         result = get_recent_history(big, max_messages=10, max_tokens=1)

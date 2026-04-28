@@ -15,24 +15,24 @@ class TestTokenEstimation:
     """Verify the 1 token ≈ 4 chars heuristic used for budget enforcement."""
 
     def test_plain_text_approximation(self):
-        from main import estimate_tokens
+        from history_utils import estimate_tokens
 
         msgs = [{"content": "a" * 400}]
         assert estimate_tokens(msgs) == 100  # 400 / 4
 
     def test_empty_messages_returns_zero(self):
-        from main import estimate_tokens
+        from history_utils import estimate_tokens
 
         assert estimate_tokens([]) == 0
 
     def test_missing_content_key_ignored(self):
-        from main import estimate_tokens
+        from history_utils import estimate_tokens
 
         msgs = [{"role": "user"}, {"content": "a" * 40}]
         assert estimate_tokens(msgs) == 10  # Only second message counts
 
     def test_multiple_messages_summed(self):
-        from main import estimate_tokens
+        from history_utils import estimate_tokens
 
         msgs = [{"content": "a" * 40}, {"content": "b" * 60}]
         assert estimate_tokens(msgs) == 25  # (40 + 60) / 4
@@ -79,13 +79,13 @@ class TestSlidingWindowTokenBudget:
         return [{"role": "user", "content": "x" * chars_per_msg} for _ in range(n)]
 
     def test_output_fits_within_token_budget(self):
-        from main import get_recent_history, estimate_tokens
+        from history_utils import get_recent_history, estimate_tokens
 
         result = get_recent_history(self._msgs(20, 500), max_messages=20, max_tokens=200)
         assert estimate_tokens(result) <= 200 or len(result) <= 2
 
     def test_does_not_trim_when_under_budget(self):
-        from main import get_recent_history
+        from history_utils import get_recent_history
 
         msgs = self._msgs(4, 10)  # 4 msgs × 10 chars = ~10 tokens
         result = get_recent_history(msgs, max_messages=10, max_tokens=4000)
@@ -93,7 +93,7 @@ class TestSlidingWindowTokenBudget:
 
     def test_returns_copy_not_reference(self):
         """Modifications to the result must not affect the original list."""
-        from main import get_recent_history
+        from history_utils import get_recent_history
 
         original = self._msgs(3)
         result = get_recent_history(original, max_messages=10)

@@ -240,32 +240,32 @@ class TestInputSanitization:
 
     def test_pdf_validation_rejects_html_content(self):
         """A file starting with <script> must not be accepted as PDF."""
-        from api_routes import validate_pdf_content
+        from shared_utils import validate_pdf_content
 
         assert validate_pdf_content(b"<script>alert('xss')</script>") is False
 
     def test_pdf_validation_rejects_empty_content(self):
-        from api_routes import validate_pdf_content
+        from shared_utils import validate_pdf_content
 
         assert validate_pdf_content(b"") is False
 
     def test_pdf_validation_rejects_short_content(self):
-        from api_routes import validate_pdf_content
+        from shared_utils import validate_pdf_content
 
         assert validate_pdf_content(b"PD") is False
 
     def test_pdf_validation_accepts_valid_header(self):
-        from api_routes import validate_pdf_content
+        from shared_utils import validate_pdf_content
 
         assert validate_pdf_content(b"%PDF-1.4 rest of file...") is True
 
     def test_pdf_validation_rejects_jpeg_magic(self):
-        from api_routes import validate_pdf_content
+        from shared_utils import validate_pdf_content
 
         assert validate_pdf_content(b"\xff\xd8\xff\xe0 JFIF") is False
 
     def test_pdf_validation_rejects_png_magic(self):
-        from api_routes import validate_pdf_content
+        from shared_utils import validate_pdf_content
 
         assert validate_pdf_content(b"\x89PNG\r\n\x1a\n") is False
 
