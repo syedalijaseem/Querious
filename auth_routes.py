@@ -850,7 +850,11 @@ async def google_callback(code: str, response: Response, state: Optional[str] = 
         # Exchange code for user info
         google_user = await google_oauth.authenticate_with_google(code)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Google authentication failed: {str(e)}")
+        error_msg = str(e)
+        if "invalid_grant" in error_msg:
+            # Code was already used (e.g., user refreshed the page) or expired
+            return RedirectResponse(url=f"{settings.APP_URL}/login?error=Session expired. Please try signing in again.", status_code=302)
+        raise HTTPException(status_code=400, detail=f"Google authentication failed: {error_msg}")
     
     # Check if user exists by email
     email = google_user["email"].lower()
@@ -921,7 +925,8 @@ async def google_callback(code: str, response: Response, state: Optional[str] = 
     )
     db.refresh_tokens.insert_one(refresh_doc.model_dump())
     
-    # Redirect to frontend with cookies\n    frontend_url = settings.APP_URL
+    # Redirect to frontend with cookies
+    frontend_url = settings.APP_URL
     redirect_response = RedirectResponse(url=frontend_url, status_code=302)
     
     # Set cookies on the redirect response

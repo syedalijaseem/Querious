@@ -12,9 +12,9 @@ from urllib.parse import urlencode
 from config import settings
 
 # Google OAuth2 configuration
-GOOGLE_CLIENT_ID = settings.GOOGLE_CLIENT_ID
-GOOGLE_CLIENT_SECRET = settings.GOOGLE_CLIENT_SECRET
-GOOGLE_REDIRECT_URI = settings.GOOGLE_REDIRECT_URI
+GOOGLE_CLIENT_ID = settings.GOOGLE_CLIENT_ID.strip(' "\'') if settings.GOOGLE_CLIENT_ID else ""
+GOOGLE_CLIENT_SECRET = settings.GOOGLE_CLIENT_SECRET.strip(' "\'') if settings.GOOGLE_CLIENT_SECRET else ""
+GOOGLE_REDIRECT_URI = settings.GOOGLE_REDIRECT_URI.strip(' "\'') if settings.GOOGLE_REDIRECT_URI else ""
 
 # Google OAuth2 endpoints
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
