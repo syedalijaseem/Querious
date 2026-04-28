@@ -36,29 +36,29 @@ export function useUploadDocument() {
       scopeId: string;
       file: File;
     }) => {
-      // Upload document
+      // Upload document — this is the only thing that should block
       const result = await api.uploadDocument(scopeType, scopeId, file);
 
-      // Trigger ingestion (non-blocking)
-      try {
-        const eventIds = await api.sendIngestEvent(
+      // Fire-and-forget: trigger ingestion in background without blocking the upload
+      // This prevents the UI from hanging if Inngest is slow or unreachable
+      api
+        .sendIngestEvent(
           result.document.s3_key,
           result.document.filename,
           scopeType,
           scopeId,
           result.document.id
-        );
-
-        // Wait for ingestion in background
-        if (eventIds.length > 0) {
-          api.waitForRunOutput(eventIds[0]).catch((err) => {
-            console.warn("Ingestion still processing:", err);
-          });
-        }
-      } catch (err) {
-        console.error("Failed to trigger ingestion:", err);
-        // We don't throw here so the document still shows as uploaded
-      }
+        )
+        .then((eventIds) => {
+          if (eventIds.length > 0) {
+            api.waitForRunOutput(eventIds[0]).catch((err) => {
+              console.warn("Ingestion still processing:", err);
+            });
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to trigger ingestion:", err);
+        });
 
       return result;
     },
