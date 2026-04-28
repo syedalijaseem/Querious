@@ -36,30 +36,8 @@ export function useUploadDocument() {
       scopeId: string;
       file: File;
     }) => {
-      // Upload document — this is the only thing that should block
+      // Upload document — ingestion is triggered server-side automatically
       const result = await api.uploadDocument(scopeType, scopeId, file);
-
-      // Fire-and-forget: trigger ingestion in background without blocking the upload
-      // This prevents the UI from hanging if Inngest is slow or unreachable
-      api
-        .sendIngestEvent(
-          result.document.s3_key,
-          result.document.filename,
-          scopeType,
-          scopeId,
-          result.document.id
-        )
-        .then((eventIds) => {
-          if (eventIds.length > 0) {
-            api.waitForRunOutput(eventIds[0]).catch((err) => {
-              console.warn("Ingestion still processing:", err);
-            });
-          }
-        })
-        .catch((err) => {
-          console.error("Failed to trigger ingestion:", err);
-        });
-
       return result;
     },
     onSuccess: (_, { scopeType, scopeId }) => {

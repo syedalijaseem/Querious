@@ -732,6 +732,24 @@ async def upload_document(
         {"$inc": {"active_documents_count": 1}}
     )
     
+    # Trigger ingestion pipeline server-side (don't rely on frontend)
+    try:
+        client = get_inngest_client()
+        await client.send(inngest.Event(
+            name="rag/ingest_pdf",
+            data={
+                "pdf_path": doc.s3_key,
+                "filename": doc.filename,
+                "scope_type": scope_type,
+                "scope_id": scope_id,
+                "document_id": doc.id,
+            }
+        ))
+        logger.info("Ingestion event sent for document %s", doc.id)
+    except Exception as e:
+        logger.error("Failed to send ingestion event for %s: %s", doc.id, e)
+        # Don't fail the upload — document is stored, ingestion can be retried
+    
     return {
         "document": doc.model_dump(),
         "s3_url": result["url"],
