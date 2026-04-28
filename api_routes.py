@@ -966,20 +966,35 @@ async def stream_query(chat_id: str, request: StreamQueryRequest, user: User = D
                 "data": json_lib.dumps({"stage": "generating", "message": "Generating response..."})
             }
             
-            # Step 6: Build prompt
+            # Step 6: Build prompt (optimized RAG format)
             context_blocks = []
             for i, ctx in enumerate(contexts):
-                source = sources[i] if i < len(sources) else "Unknown"
-                score = scores[i] if i < len(scores) else 0.0
-                context_blocks.append(f"---\nSource: {source} (Relevance: {score:.0%})\n{ctx}")
-            context_block = "\n\n".join(context_blocks)
+                context_blocks.append(f"[{i+1}] {ctx}")
+            context_block = "\n".join(context_blocks)
             
-            system_prompt = """You are a helpful document assistant for Querious. Answer questions based ONLY on the provided context.
-Rules:
-- Only use information from the provided context
-- If the context doesn't contain enough information, say so clearly  
-- Cite sources using [source: filename, page X] format
-- Be concise but thorough"""
+            system_prompt = """You are a document question-answering assistant.
+
+Your task is to answer the user's question using ONLY the provided context.
+
+Behavior:
+- Start with a direct answer
+- Keep responses concise and focused (2-4 sentences by default)
+- Include only the most relevant information
+- Do not summarize the entire document
+- Do not include unrelated details
+- Avoid repetition and rephrasing the same idea
+
+Selection Rules:
+- If multiple context chunks are provided, use only the most relevant ones
+- Ignore sections that are not directly useful for answering the question
+
+If the answer is not clearly present in the context, say:
+"I couldn't find relevant information in the provided documents."
+
+Style:
+- Natural and professional, like explaining to a colleague
+- Clear and smooth, not robotic
+- No unnecessary formatting or headings"""
 
             messages = [{"role": "system", "content": system_prompt}]
             
@@ -988,7 +1003,7 @@ Rules:
             messages.extend(recent_history)
             messages.append({
                 "role": "user", 
-                "content": f"Based on the following context:\n\n{context_block}\n\n---\nQuestion: {request.question}\n\nProvide a clear answer. Cite sources when referencing information."
+                "content": f"CONTEXT:\n{context_block}\n\nQUESTION:\n{request.question}\n\nAnswer briefly unless more detail is explicitly requested.\n\nAnswer:"
             })
             
             # Step 7: Stream from DeepSeek
@@ -1005,7 +1020,8 @@ Rules:
                         "messages": messages,
                         "stream": True,
                         "temperature": 0.3,
-                        "max_tokens": 2048,
+                        "max_tokens": 512,
+                        "top_p": 0.9
                     }
                 ) as response:
                     full_response = ""

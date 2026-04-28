@@ -198,24 +198,37 @@ async def rag_query_pdf_ai(ctx: inngest.Context):
     logger.info("Scope: %s / %s", event_data.scope_type, event_data.scope_id)
     logger.info("Top K: %d", event_data.top_k)
     
-    # --- System Prompt ---
-    SYSTEM_PROMPT = """You are a helpful document assistant for Querious. Your role is to answer questions based ONLY on the provided context from the user's documents.
+    SYSTEM_PROMPT = """You are a document question-answering assistant.
 
-Rules:
-- Only use information from the provided context
-- If the context doesn't contain enough information, say so clearly
-- Cite sources using [source: filename, page X] format
-- Be concise but thorough
-- If asked about something not in the context, don't make things up
-- For follow-up questions, use conversation history for context"""
+Your task is to answer the user's question using ONLY the provided context.
+
+Behavior:
+- Start with a direct answer
+- Keep responses concise and focused (2-4 sentences by default)
+- Include only the most relevant information
+- Do not summarize the entire document
+- Do not include unrelated details
+- Avoid repetition and rephrasing the same idea
+
+Selection Rules:
+- If multiple context chunks are provided, use only the most relevant ones
+- Ignore sections that are not directly useful for answering the question
+
+If the answer is not clearly present in the context, say:
+"I couldn't find relevant information in the provided documents."
+
+Style:
+- Natural and professional, like explaining to a colleague
+- Clear and smooth, not robotic
+- No unnecessary formatting or headings"""
     
     # --- Max tokens by quality preset ---
     MAX_TOKENS_BY_CHUNKS = {
-        5: 512,      # Quick
-        10: 1024,    # Standard
-        20: 2048,    # Thorough
-        35: 4096,    # Deep
-        50: 4096,    # Max
+        5: 220,      # Quick
+        10: 220,     # Standard
+        20: 220,     # Thorough
+        35: 220,     # Deep
+        50: 220,     # Max
     }
     max_tokens = MAX_TOKENS_BY_CHUNKS.get(event_data.top_k, 1024)
     
@@ -302,28 +315,22 @@ Rules:
             tokens_used=0
         ).model_dump()
 
-    # --- Improved context formatting with page numbers and scores ---
+    # --- Optimized context formatting (numbered chunks) ---
     context_blocks = []
     documents_used = set()
     for i, text in enumerate(contexts):
         source = sources[i] if i < len(sources) else "Unknown"
-        score = scores[i] if i < len(scores) else 0.0
-        page = i + 1  # Approximate page number
         documents_used.add(source)
-        
-        context_blocks.append(
-            f"---\nSource: {source} (Page {page})\nRelevance: {score:.0%}\n{text}\n"
-        )
+        context_blocks.append(f"[{i+1}] {text}")
     
     context_block = "\n".join(context_blocks)
     
-    # --- Improved user prompt ---
+    # --- Optimized user prompt ---
     user_content = (
-        f"Based on the following excerpts from your documents:\n\n"
-        f"{context_block}\n"
-        f"---\n"
-        f"Question: {event_data.question}\n\n"
-        f"Provide a clear, well-structured answer. Cite specific sources when referencing information."
+        f"CONTEXT:\n{context_block}\n\n"
+        f"QUESTION:\n{event_data.question}\n\n"
+        f"Answer briefly unless more detail is explicitly requested.\n\n"
+        f"Answer:"
     )
 
     adapter = ai.openai.Adapter(
@@ -347,7 +354,8 @@ Rules:
         adapter=adapter,
         body={
             "max_tokens": max_tokens,
-            "temperature": 0.3,  # More deterministic/factual
+            "temperature": 0.3,
+            "top_p": 0.9,
             "messages": messages
         }
     )
